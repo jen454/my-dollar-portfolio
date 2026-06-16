@@ -74,7 +74,7 @@
 - **Data & State**: React Hooks + Toss SDK Bridge Storage (네이티브 키-밸류 저장소)
 - **SDK**: Toss App Bridge SDK (기기 데이터 저장 및 웹뷰 제어)
 - **API**: 한국수출입은행 OpenAPI (실시간 기준환율 조회용)
-- **Icons**: Lucide React (또는 TDS 전용 아이콘)
+- **Icons**: TDS 전용 아이콘
 
 ---
 
