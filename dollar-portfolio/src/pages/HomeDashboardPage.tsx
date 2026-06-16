@@ -8,10 +8,8 @@ import {
 import { colors } from "@toss/tds-colors";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
-import {
-  useDollarPortfolio,
-  buildTransactionBalanceMap,
-} from "../hooks/useDollarPortfolio";
+import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
+import { buildTransactionBalanceMap } from "../utils/calculator";
 import { formatKrw, formatSignedKrw } from "../utils/format";
 import { TransactionRow } from "../components/TransactionRow";
 

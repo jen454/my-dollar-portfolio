@@ -1,7 +1,14 @@
 import { ListRow } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
-import { DollarTransaction, TransactionType } from "../hooks/useDollarPortfolio";
+import type { DollarTransaction, TransactionType } from "../types";
+import { getSignedChangeAmount } from "../utils/calculator";
 import { formatDollar } from "../utils/format";
+
+function getSignedDelta(transaction: DollarTransaction): number {
+  if (transaction.type === "buy") return Math.abs(transaction.dollarAmount);
+  if (transaction.type === "sell") return -Math.abs(transaction.dollarAmount);
+  return getSignedChangeAmount(transaction);
+}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const typeMeta: Record<
@@ -20,7 +27,7 @@ export const typeMeta: Record<
     color: colors.grey600,
     backgroundColor: colors.grey100,
   },
-  dividend: {
+  change: {
     label: "달러 변동",
     marker: "$",
     color: colors.green500,
@@ -36,7 +43,8 @@ export function TransactionRow({
   dollarBalance: number;
 }) {
   const meta = typeMeta[transaction.type];
-  const amountColor = transaction.dollarAmount >= 0 ? colors.red500 : colors.blue500;
+  const delta = getSignedDelta(transaction);
+  const amountColor = delta >= 0 ? colors.red500 : colors.blue500;
   const isExchange = transaction.type === "buy" || transaction.type === "sell";
 
   return (
@@ -97,7 +105,7 @@ export function TransactionRow({
       right={
         <div style={{ minWidth: "74px", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
           <ListRow.Text typography="t6" fontWeight="bold" color={amountColor}>
-            {formatDollar(transaction.dollarAmount)}
+            {formatDollar(delta)}
           </ListRow.Text>
           <ListRow.Text typography="t7" color={colors.grey600}>
             ${dollarBalance.toLocaleString("en-US")}

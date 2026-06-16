@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { FixedBottomCTA, BottomSheet, Text } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
+import type { DollarTransaction, TransactionType } from "../types";
+import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
 import {
-  DollarTransaction,
-  TransactionType,
-  useDollarPortfolio,
   sortTransactionsByDateDesc,
   buildTransactionBalanceMap,
-} from "../hooks/useDollarPortfolio";
+} from "../utils/calculator";
 import { TransactionListRow } from "../components/TransactionListRow";
 import { Calendar } from "../components/Calendar";
 
@@ -20,7 +19,7 @@ const FILTER_OPTIONS: Array<{ name: string; value: string }> = [
   { name: "전체", value: "all" },
   { name: "달러 환전", value: "buy" },
   { name: "원화 환전", value: "sell" },
-  { name: "달러 변동", value: "dividend" },
+  { name: "달러 변동", value: "change" },
 ];
 
 export function TransactionListPage() {

@@ -1,13 +1,14 @@
 import { ListRow } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
-import { DollarTransaction } from "../hooks/useDollarPortfolio";
+import type { DollarTransaction } from "../types";
+import { getSignedChangeAmount } from "../utils/calculator";
 import { formatDollar } from "../utils/format";
 import { typeMeta } from "./TransactionRow";
 
 function getSignedDelta(tx: DollarTransaction): number {
   if (tx.type === "buy") return Math.abs(tx.dollarAmount);
   if (tx.type === "sell") return -Math.abs(tx.dollarAmount);
-  return tx.dollarAmount;
+  return getSignedChangeAmount(tx);
 }
 
 export function TransactionListRow({

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Text } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
-import { DollarTransaction } from "../hooks/useDollarPortfolio";
+import type { DollarTransaction } from "../types";
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
