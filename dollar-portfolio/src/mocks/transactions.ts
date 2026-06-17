@@ -14,6 +14,7 @@ export const mockTransactions: DollarTransaction[] = [
     exchangeRate: 1503,
     dollarAmount: 200,
     krwAmount: 300600,
+    profitKrw: 8600,
   },
   {
     id: "tx-3",

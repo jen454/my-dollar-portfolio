@@ -18,6 +18,7 @@ export type DollarTransaction = {
   krwAmount?: number; // 원화 금액 (buy/sell만)
   direction?: ChangeDirection; // change 유형만
   memo?: ChangeMemo; // change 유형만
+  profitKrw?: number; // sell 시 환전 손익 (저장 시점 평균단가 기준)
   createdAt?: number; // timestamp
 };
 

@@ -1,8 +1,8 @@
-import { ListRow } from "@toss/tds-mobile";
+import { ListRow, Asset } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction } from "../types";
 import { getSignedChangeAmount } from "../utils/calculator";
-import { formatSignedDollar } from "../utils/formatter";
+import { formatSignedDollar, formatProfitKrw } from "../utils/formatter";
 import { typeMeta } from "./TransactionRow";
 
 function getSignedDelta(tx: DollarTransaction): number {
@@ -20,7 +20,10 @@ export function TransactionListRow({
 }) {
   const meta = typeMeta[transaction.type];
   const delta = getSignedDelta(transaction);
-  const deltaColor = delta >= 0 ? colors.red500 : colors.blue500;
+  const isExchange = transaction.type === "buy" || transaction.type === "sell";
+  const deltaColor = isExchange
+    ? colors.grey700
+    : delta >= 0 ? colors.red500 : colors.blue500;
 
   return (
     <ListRow
@@ -28,14 +31,11 @@ export function TransactionListRow({
       verticalPadding="small"
       horizontalPadding="small"
       left={
-        <ListRow.AssetText
-          shape="squircle"
-          size="small"
-          color={meta.color}
+        <Asset.Icon
+          name={meta.iconName}
+          frameShape={{ width: 36, height: 36 }}
           backgroundColor={meta.backgroundColor}
-        >
-          {meta.marker}
-        </ListRow.AssetText>
+        />
       }
       contents={
         transaction.type === "buy" || transaction.type === "sell" ? (
@@ -67,6 +67,11 @@ export function TransactionListRow({
           <ListRow.Text typography="t6" fontWeight="bold" color={deltaColor}>
             {formatSignedDollar(delta)}
           </ListRow.Text>
+          {transaction.type === "sell" && transaction.profitKrw !== undefined && (
+            <ListRow.Text typography="t7" color={transaction.profitKrw >= 0 ? colors.red500 : colors.blue500}>
+              {formatProfitKrw(transaction.profitKrw)}
+            </ListRow.Text>
+          )}
           <ListRow.Text typography="t7" color={colors.grey600}>
             ${dollarBalance.toLocaleString("en-US")}
           </ListRow.Text>

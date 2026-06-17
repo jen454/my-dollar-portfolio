@@ -203,6 +203,9 @@ export function AddRecordPage() {
         dollarAmount,
         exchangeRate: appliedRate,
         krwAmount: appliedKrw,
+        ...(type === "sell" && {
+          profitKrw: (appliedRate - summary.averageExchangeRate) * dollarAmount,
+        }),
       };
     }
 

@@ -4,11 +4,13 @@ import { FixedBottomCTA, BottomSheet, Text } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction, TransactionType } from "../types";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
+import { useRecordStore } from "../store/recordStore";
 import {
   sortTransactionsByDateDesc,
   buildTransactionBalanceMap,
 } from "../utils/calculator";
 import { TransactionListRow } from "../components/TransactionListRow";
+import { SwipeableItem } from "../components/SwipeableItem";
 import { Calendar } from "../components/Calendar";
 
 function parseTransactionDate(dateStr: string): Date {
@@ -27,6 +29,7 @@ export function TransactionListPage() {
   const navigate = useNavigate();
   const today = new Date();
   const { storage } = useDollarPortfolio();
+  const deleteTransaction = useRecordStore((s) => s.deleteTransaction);
 
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
@@ -34,6 +37,7 @@ export function TransactionListPage() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [filter, setFilter] = useState("all");
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -126,11 +130,25 @@ export function TransactionListPage() {
               </div>
               <div style={{ borderRadius: 15, overflow: "hidden", background: colors.background }}>
                 {transactions.map((tx) => (
-                  <TransactionListRow
+                  <SwipeableItem
                     key={tx.id}
-                    transaction={tx}
-                    dollarBalance={balanceMap.get(tx.id) ?? 0}
-                  />
+                    itemKey={tx.id}
+                    openKey={openItemId}
+                    onSwipeOpen={setOpenItemId}
+                    onEdit={() => {
+                      setOpenItemId(null);
+                      navigate("/add-record", { state: { transaction: tx } });
+                    }}
+                    onDelete={() => {
+                      setOpenItemId(null);
+                      deleteTransaction(tx.id);
+                    }}
+                  >
+                    <TransactionListRow
+                      transaction={tx}
+                      dollarBalance={balanceMap.get(tx.id) ?? 0}
+                    />
+                  </SwipeableItem>
                 ))}
               </div>
             </div>

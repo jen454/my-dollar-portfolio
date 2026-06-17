@@ -1,8 +1,8 @@
-import { ListRow } from "@toss/tds-mobile";
+import { ListRow, Asset } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction, TransactionType } from "../types";
 import { getSignedChangeAmount } from "../utils/calculator";
-import { formatSignedDollar } from "../utils/formatter";
+import { formatSignedDollar, formatProfitKrw } from "../utils/formatter";
 
 function getSignedDelta(transaction: DollarTransaction): number {
   if (transaction.type === "buy") return Math.abs(transaction.dollarAmount);
@@ -13,25 +13,22 @@ function getSignedDelta(transaction: DollarTransaction): number {
 // eslint-disable-next-line react-refresh/only-export-components
 export const typeMeta: Record<
   TransactionType,
-  { label: string; marker: string; color: string; backgroundColor: string }
+  { label: string; iconName: string; backgroundColor: string }
 > = {
   buy: {
     label: "달러 환전",
-    marker: "$",
-    color: colors.blue500,
-    backgroundColor: "#e8f3ff",
+    iconName: "icon-coin-dollar-sync",
+    backgroundColor: colors.background,
   },
   sell: {
     label: "원화 환전",
-    marker: "W",
-    color: colors.grey600,
-    backgroundColor: colors.grey100,
+    iconName: "icon-coin-won-sync",
+    backgroundColor: colors.background,
   },
   change: {
     label: "달러 변동",
-    marker: "$",
-    color: colors.green500,
-    backgroundColor: "#f0faf6",
+    iconName: "icon-money-bag-dollar-green",
+    backgroundColor: colors.background,
   },
 };
 
@@ -44,8 +41,10 @@ export function TransactionRow({
 }) {
   const meta = typeMeta[transaction.type];
   const delta = getSignedDelta(transaction);
-  const amountColor = delta >= 0 ? colors.red500 : colors.blue500;
   const isExchange = transaction.type === "buy" || transaction.type === "sell";
+  const amountColor = isExchange
+    ? colors.grey700
+    : delta >= 0 ? colors.red500 : colors.blue500;
 
   return (
     <ListRow
@@ -53,14 +52,11 @@ export function TransactionRow({
       verticalPadding="small"
       horizontalPadding="small"
       left={
-        <ListRow.AssetText
-          shape="squircle"
-          size="small"
-          color={meta.color}
+        <Asset.Icon
+          name={meta.iconName}
+          frameShape={{ width: 36, height: 36 }}
           backgroundColor={meta.backgroundColor}
-        >
-          {meta.marker}
-        </ListRow.AssetText>
+        />
       }
       contents={
         isExchange ? (
@@ -107,6 +103,11 @@ export function TransactionRow({
           <ListRow.Text typography="t6" fontWeight="bold" color={amountColor}>
             {formatSignedDollar(delta)}
           </ListRow.Text>
+          {transaction.type === "sell" && transaction.profitKrw !== undefined && (
+            <ListRow.Text typography="t7" color={transaction.profitKrw >= 0 ? colors.red500 : colors.blue500}>
+              {formatProfitKrw(transaction.profitKrw)}
+            </ListRow.Text>
+          )}
           <ListRow.Text typography="t7" color={colors.grey600}>
             ${dollarBalance.toLocaleString("en-US")}
           </ListRow.Text>
