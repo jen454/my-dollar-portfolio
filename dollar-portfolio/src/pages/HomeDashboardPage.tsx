@@ -8,6 +8,7 @@ import { colors } from "@toss/tds-colors";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
+import { useRecordStore } from "../store/recordStore";
 import { buildTransactionBalanceMap } from "../utils/calculator";
 import { formatKrw, formatProfitKrw } from "../utils/formatter";
 import { TransactionRow } from "../components/TransactionRow";
@@ -40,6 +41,7 @@ const gridItemStyle = {
 export function HomeDashboardPage() {
   const navigate = useNavigate();
   const { storage, summary, recentTransactions } = useDollarPortfolio();
+  const rateBaseDate = useRecordStore((s) => s.rateBaseDate);
   const balanceMap = useMemo(
     () => buildTransactionBalanceMap(storage.transactions),
     [storage.transactions],
@@ -74,9 +76,10 @@ export function HomeDashboardPage() {
                 <ListRow
                   border="none" verticalPadding="small" horizontalPadding="small"
                   contents={
-                    <ListRow.Texts type="2RowTypeA"
+                    <ListRow.Texts type="3RowTypeA"
                       top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 환율</ListRow.Text>}
-                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatKrw(summary.currentExchangeRate)}</ListRow.Text>}
+                      middle={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatKrw(summary.currentExchangeRate)}</ListRow.Text>}
+                      bottom={rateBaseDate ? <ListRow.Text typography="t7" color={colors.grey400}>{rateBaseDate} 기준</ListRow.Text> : ""}
                     />
                   }
                   right={

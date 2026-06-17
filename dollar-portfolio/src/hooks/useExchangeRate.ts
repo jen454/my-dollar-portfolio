@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRecordStore } from "../store/recordStore";
 
-const EXCHANGE_RATE_API_URL =
-  "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
+const EXCHANGE_RATE_API_URL = import.meta.env.DEV
+  ? "/api/exchange-rate"
+  : "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
 const CACHE_KEY = "dollar_portfolio_exchange_rate_cache";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const MAX_BUSINESS_DAY_LOOKBACK = 5; // 비영업일 대비 최대 5일 전까지 재조회
@@ -10,6 +11,7 @@ const MAX_BUSINESS_DAY_LOOKBACK = 5; // 비영업일 대비 최대 5일 전까�
 type ExchangeRateCache = {
   rate: number;
   fetchedAt: number; // timestamp(ms)
+  rateBaseDate: string; // 'YYYY.MM.DD'
 };
 
 type ExchangeRateApiItem = {
@@ -23,6 +25,7 @@ type UseExchangeRateResult = {
   isLoading: boolean;
   error: string | null;
   lastFetched: Date | null;
+  rateBaseDate: string | null; // 실제 환율 기준일 'YYYY.MM.DD'
   refetch: () => void;
 };
 
@@ -85,7 +88,7 @@ async function fetchExchangeRateByDate(
   searchDate: string,
   apiKey: string,
 ): Promise<number | null> {
-  const url = new URL(EXCHANGE_RATE_API_URL);
+  const url = new URL(EXCHANGE_RATE_API_URL, window.location.origin);
   url.searchParams.set("authkey", apiKey);
   url.searchParams.set("data", "AP01");
   url.searchParams.set("searchdate", searchDate);
@@ -114,16 +117,20 @@ async function fetchExchangeRateByDate(
   return parsedRate > 0 ? parsedRate : null;
 }
 
+function formatRateBaseDate(yyyymmdd: string): string {
+  return `${yyyymmdd.slice(0, 4)}.${yyyymmdd.slice(4, 6)}.${yyyymmdd.slice(6, 8)}`;
+}
+
 /**
  * 오늘 날짜부터 최대 MAX_BUSINESS_DAY_LOOKBACK일 전까지 하루씩 앞당겨가며
  * 가장 최근 영업일의 환율을 조회한다.
  */
-async function fetchLatestExchangeRate(apiKey: string): Promise<number> {
+async function fetchLatestExchangeRate(apiKey: string): Promise<{ rate: number; rateBaseDate: string }> {
   for (let daysAgo = 0; daysAgo < MAX_BUSINESS_DAY_LOOKBACK; daysAgo += 1) {
     const searchDate = formatSearchDate(daysAgo);
     const rate = await fetchExchangeRateByDate(searchDate, apiKey);
     if (rate !== null) {
-      return rate;
+      return { rate, rateBaseDate: formatRateBaseDate(searchDate) };
     }
   }
   throw new Error("최근 영업일 환율 정보를 찾을 수 없습니다.");
@@ -145,13 +152,15 @@ export function useExchangeRate(): UseExchangeRateResult {
   const [lastFetched, setLastFetched] = useState<Date | null>(
     cached ? new Date(cached.fetchedAt) : null,
   );
+  const [rateBaseDate, setRateBaseDate] = useState<string | null>(cached?.rateBaseDate ?? null);
 
   const fetchRate = useCallback(
     async (force: boolean) => {
       if (!force) {
         const cachedNow = readCache();
-        if (cachedNow && Date.now() - cachedNow.fetchedAt < ONE_HOUR_MS) {
+        if (cachedNow && Date.now() - cachedNow.fetchedAt < ONE_HOUR_MS && cachedNow.rateBaseDate) {
           setRate(cachedNow.rate);
+          setRateBaseDate(cachedNow.rateBaseDate ?? null);
           setLastFetched(new Date(cachedNow.fetchedAt));
           return;
         }
@@ -162,14 +171,14 @@ export function useExchangeRate(): UseExchangeRateResult {
 
       try {
         const apiKey = import.meta.env.VITE_EXCHANGE_RATE_API_KEY ?? "";
-        const parsedRate = await fetchLatestExchangeRate(apiKey);
+        const { rate: parsedRate, rateBaseDate: baseDate } = await fetchLatestExchangeRate(apiKey);
 
         const fetchedAt = Date.now();
-        writeCache({ rate: parsedRate, fetchedAt });
+        writeCache({ rate: parsedRate, fetchedAt, rateBaseDate: baseDate });
         setRate(parsedRate);
+        setRateBaseDate(baseDate);
         setLastFetched(new Date(fetchedAt));
       } catch (err) {
-        // 실패 시 recordStore에 저장된 마지막 환율을 그대로 사용한다.
         setError(err instanceof Error ? err.message : "환율 조회에 실패했습니다.");
         setRate(storeRate);
       } finally {
@@ -189,5 +198,5 @@ export function useExchangeRate(): UseExchangeRateResult {
     fetchRate(true);
   }, [fetchRate]);
 
-  return { rate, isLoading, error, lastFetched, refetch };
+  return { rate, isLoading, error, lastFetched, rateBaseDate, refetch };
 }

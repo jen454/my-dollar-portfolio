@@ -46,8 +46,8 @@ src/
 - [x] 캘린더 전체보기 (pages/Records)
 - [x] 숫자 포맷 유틸 (utils/formatter.ts)
 - [ ] 환율 API 훅 (hooks/useExchangeRate.ts)
-- [ ] 거래 입력 화면 (pages/AddRecord)
-- [ ] 스와이프 수정/삭제
+- [x] 거래 입력 화면 (pages/AddRecord)
+- [x] 스와이프 수정/삭제
 - [ ] 빈 상태 / 로딩 상태 처리
 
 ## 핵심 타입

@@ -3,4 +3,13 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      "/api/exchange-rate": {
+        target: "https://oapi.koreaexim.go.kr",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/exchange-rate/, "/site/program/financial/exchangeJSON"),
+      },
+    },
+  },
 });

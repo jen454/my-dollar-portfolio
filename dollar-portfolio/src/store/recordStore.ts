@@ -19,9 +19,11 @@ interface RecordStore {
   storage: DollarPortfolioStorageV1 | null;
   isLoaded: boolean;
   currentExchangeRate: number;
+  rateBaseDate: string | null;
 
   loadFromStorage: () => Promise<void>;
   setExchangeRate: (rate: number) => void;
+  setRateBaseDate: (date: string) => void;
   addTransaction: (tx: Omit<DollarTransaction, "id" | "createdAt">) => Promise<void>;
   updateTransaction: (id: string, tx: Partial<DollarTransaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -40,6 +42,7 @@ export const useRecordStore = create<RecordStore>((set, get) => ({
   storage: null,
   isLoaded: false,
   currentExchangeRate: mockCurrentExchangeRate,
+  rateBaseDate: null,
 
   loadFromStorage: async () => {
     const saved = await portfolioStorage.get();
@@ -55,6 +58,10 @@ export const useRecordStore = create<RecordStore>((set, get) => ({
 
   setExchangeRate: (rate) => {
     set({ currentExchangeRate: rate });
+  },
+
+  setRateBaseDate: (date) => {
+    set({ rateBaseDate: date });
   },
 
   addTransaction: async (tx) => {
