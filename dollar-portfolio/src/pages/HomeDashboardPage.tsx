@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
 import { buildTransactionBalanceMap } from "../utils/calculator";
-import { formatKrw, formatSignedKrw } from "../utils/format";
+import { formatKrw, formatProfitKrw } from "../utils/formatter";
 import { TransactionRow } from "../components/TransactionRow";
 
 const colFull = {
@@ -126,7 +126,7 @@ export function HomeDashboardPage() {
                 원화 환산 손익
               </Text>
               <Text typography="t5" fontWeight="bold" color={profitTone}>
-                {formatSignedKrw(summary.profitKrw)} ({summary.profitRate.toFixed(2)}%)
+                {formatProfitKrw(summary.profitKrw)} ({summary.profitRate.toFixed(2)}%)
               </Text>
             </div>
             <Border variant="full" />
@@ -175,7 +175,7 @@ export function HomeDashboardPage() {
 
       <FixedBottomCTA
         size="large"
-        onClick={() => undefined}
+        onClick={() => navigate("/add-record")}
         bottomAccessory={
           <Text typography="t7" color={colors.greyOpacity600} style={{ margin: "-10px 0 0", lineHeight: "1.5", textAlign: "center" }}>
             한국수출입은행 기준환율 기반 단순 계산기입니다.

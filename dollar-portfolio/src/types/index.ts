@@ -5,7 +5,7 @@ export type TransactionType = "buy" | "sell" | "change";
 export type ChangeDirection = "plus" | "minus";
 
 // 달러 변동 구분 메모 (change 유형에서만 사용)
-export type ChangeMemo = "매도차익" | "매도손실" | "배당금" | "이자" | "기타";
+export type ChangeMemo = "매도차익" | "매도손실" | "배당금" | "계좌이자" | "기타";
 
 // 거래 내역
 export type DollarTransaction = {

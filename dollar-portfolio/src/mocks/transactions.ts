@@ -18,7 +18,7 @@ export const mockTransactions: DollarTransaction[] = [
   {
     id: "tx-3",
     type: "change",
-    title: "매매차익",
+    title: "판매수익",
     date: "2026.06.12",
     dollarAmount: 1100,
     direction: "plus",
@@ -27,7 +27,7 @@ export const mockTransactions: DollarTransaction[] = [
   {
     id: "tx-2",
     type: "change",
-    title: "달러 감소",
+    title: "판매수익",
     date: "2026.06.05",
     dollarAmount: 600,
     direction: "minus",

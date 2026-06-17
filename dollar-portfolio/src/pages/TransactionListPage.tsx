@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { FixedBottomCTA, BottomSheet, Text } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction, TransactionType } from "../types";
@@ -23,6 +24,7 @@ const FILTER_OPTIONS: Array<{ name: string; value: string }> = [
 ];
 
 export function TransactionListPage() {
+  const navigate = useNavigate();
   const today = new Date();
   const { storage } = useDollarPortfolio();
 
@@ -155,7 +157,7 @@ export function TransactionListPage() {
 
       <FixedBottomCTA
         size="large"
-        onClick={() => undefined}
+        onClick={() => navigate("/add-record")}
         bottomAccessory={
           <Text typography="t7" color={colors.greyOpacity600} style={{ margin: "-10px 0 0", lineHeight: "1.5", textAlign: "center" }}>
             한국수출입은행 기준환율 기반 단순 계산기입니다.

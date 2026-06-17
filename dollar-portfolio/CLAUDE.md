@@ -1,83 +1,140 @@
-## 1. 프로젝트 원칙 (Core Principles)
+# 나의 달러 포트폴리오 — 프로젝트 컨텍스트
 
-- **실용주의 및 TDS 준수**: 과한 추상화나 디자인 패턴을 지양한다. Toss Design System(TDS) 컴포넌트를 적극 활용하여 UI 코드를 최소화하고, 가볍고 직관적인 모바일 웹뷰 코드를 작성한다.
-- **도메인 중심 계산 (수학적 정밀함)**: 평균 환전단가(가중평균), 투입 원화 비례 차감, 달러 변동 분리 등 기획서의 핵심 계산 구조를 한 치의 오차도 없이 구현한다.
-- **안전한 로컬 데이터 관리**: 로그인 없이 `localStorage`에 데이터를 안전하게 저장/동기화하며, 상태 관리가 꼬이지 않도록 데이터 불변성을 유지한다.
-- **문서화 기반 구현**: 코드를 작성하기 전, 반드시 해당 기능의 설계 문서를 먼저 생성한다.
+## 앱 개요
 
----
+토스 미니앱 (WebView 방식).
+토스증권 달러 예수금의 평균 환전단가와 투입 원화 대비 손익을 계산해주는 계산기 도구.
+투자 조언 없음, 순수 계산기.
 
-## 2. 기능 구현 워크포로우 (Step-by-Step)
+## 기술 스택
 
-새로운 기능을 구현할 때 AI는 반드시 아래 순서를 따른다.
+- React + Vite + TypeScript
+- Zustand (상태관리)
+- @apps-in-toss/web-framework (토스 SDK)
+- TDS (Toss Design System) — 토스 미니앱 필수
+- SDK Storage (영구 저장) + localStorage 폴백
 
-**중요: 각 Step이 끝날 때마다 사용자의 승인(Go/No-go)을 확인한다.**
+## 프로젝트 구조
 
-### Step 1: 기술 및 알고리즘 제안 (Technical Proposal)
+src/
+├── pages/
+│ ├── Home/ # 홈 대시보드 (완료)
+│ ├── Records/ # 캘린더 전체보기 (완료)
+│ └── AddRecord/ # 거래 기록 입력 (미구현)
+├── components/ # 공통 컴포넌트
+├── store/
+│ └── recordStore.ts # Zustand 전역 상태 (완료)
+├── hooks/
+│ └── useExchangeRate.ts # 환율 API (미구현)
+├── utils/
+│ ├── calculator.ts # 순수 계산 함수 (완료)
+│ ├── storage.ts # Storage 어댑터 (완료)
+│ └── formatter.ts # 숫자/날짜 포맷 (미구현)
+├── mocks/
+│ └── transactions.ts # 개발용 더미 데이터 (완료)
+└── types/
+└── index.ts # 타입 정의 (완료)
 
-기능 구현에 앞서, 특히 **계산 로직**과 **토스 정책 및 API 연동**에 대한 대안을 제시한다.
+## 구현 현황
 
-1. **후보군**: 기획서 스펙(예: 환율 API 호출, 캘린더 라이브러리, 스와이프 인터랙션)에 맞는 2~3가지 구현 대안 제시.
-2. **비교 분석**: 각 대안의 복잡도, 번들 사이즈, 모바일 웹뷰 환경에서의 터치 인터랙션 성능 비교.
-3. **최종 추천 및 사유**: '나의 달러 포트폴리오' MVP 우선순위와 데이터 무결성에 비추어 왜 이 방식이 최선인지 설명.
-4. **[Checkpoint]** 승인 시 Step 2로 이동.
+- [x] 타입 정의 (types/index.ts)
+- [x] 더미 데이터 분리 (mocks/transactions.ts)
+- [x] 계산 로직 (utils/calculator.ts)
+- [x] Storage 어댑터 (utils/storage.ts)
+- [x] Zustand store (store/recordStore.ts)
+- [x] 홈 대시보드 (pages/Home)
+- [x] 캘린더 전체보기 (pages/Records)
+- [x] 숫자 포맷 유틸 (utils/formatter.ts)
+- [ ] 환율 API 훅 (hooks/useExchangeRate.ts)
+- [ ] 거래 입력 화면 (pages/AddRecord)
+- [ ] 스와이프 수정/삭제
+- [ ] 빈 상태 / 로딩 상태 처리
 
-### Step 2: 설계 문서 작성 (Documentation)
+## 핵심 타입
 
-사용자의 승인을 받은 후, `docs/features/{feature-name}.md` 파일을 생성한다.
+```typescript
+type TransactionType = "buy" | "sell" | "change";
+type ChangeDirection = "plus" | "minus";
+type ChangeMemo = "매도차익" | "매도손실" | "배당금" | "이자" | "기타";
 
-- **Context**: 기능의 목적 (예: 거래 기록 입력 및 실시간 반영).
-- **Requirements & Edge Cases**:
-  - 기획서의 3가지 거래 유형별 데이터 처리 및 6대 엣지케이스(예: 총 보유 달러 < 환전 달러 가이드 노출 등) 대응 명세.
-- **Data Schema**: `localStorage`에 저장될 거래 내역 객체 구조 및 상태(State) 타입 정의.
-- **Implementation Plan**: 단계별 구현 순서 (MVP 1~5단계 필수 기능 우선 반영).
-- **[Checkpoint]** 사용자가 문서를 검토하고 승인하면 Step 3로 이동.
+interface DollarTransaction {
+  id: string;
+  type: TransactionType;
+  title: string;
+  date: string; // 'YYYY.MM.DD'
+  exchangeRate?: number; // buy/sell만
+  dollarAmount: number; // change는 항상 양수, direction으로 부호 결정
+  krwAmount?: number; // buy/sell만
+  direction?: ChangeDirection; // change만
+  memo?: ChangeMemo; // change만
+  createdAt?: number;
+}
 
-### Step 3: 핵심 계산 로직 및 Hooks 작성 (Core Logic & Hooks)
+interface DollarPortfolioStorageV1 {
+  version: 1;
+  transactions: DollarTransaction[];
+  updatedAt: string;
+}
+```
 
-기획서의 핵심 계산 구조를 **Custom Hooks (`src/hooks/`)** 와 **순수 함수**로 완벽히 격리하여 구현한다.
+## 핵심 비즈니스 로직
 
-- **핵심 계산식 강제 준수**:
-  - **평균 환전단가**: `총 투입 원화 ÷ 총 환전 달러` (원화 ➡️ 달러 기록만 가중평균, 달러 변동분은 미반영).
-  - **달러 ➡️ 원화 환전**: 평균단가는 유지하되, `투입 원화`와 `환전 달러`를 비례 차감 (`평균 환전단가 × 환전 달러`). 이번 환전 손익 계산.
-  - **손익**: `(총 보유 달러 × 현재 환율) - 총 투입 원화`. (추가 달러분은 손익에 반영).
-- UI와 분리된 비즈니스 로직은 `src/hooks/useDollarPortfolio.ts` 등 전용 훅으로 집중 관리한다.
-- **[Checkpoint]** 계산 알고리즘 및 엣지케이스 대응 로직 검증 완료 시 Step 4로 이동.
+### 평균 환전단가
 
-### Step 4: TDS 기반 UI 및 페이지 구현 (UI & Pages)
+- 가중평균: 총 투입 원화 ÷ 총 환전 달러
+- buy 기록만 계산에 포함
+- change는 평균단가/투입 원화 변동 없음
+- sell 시 평균단가 유지, 투입 원화/환전 달러 비례 차감
 
-- **TDS UI 및 모바일 레이아웃**: 토스 앱 감성의 UI를 적용하고, 하단 면책 고지 및 하단 고정 버튼 레이아웃을 TailwindCSS로 구현한다.
-- **화면 구성을 위한 `pages/` 아키텍처**:
-  - `Screen 1 (홈 대시보드)`: 핵심 지표 4가지, 실시간 환율 대비 차이, 최근 3건 미리보기.
-  - `Screen 2 (거래 전체보기)`: 상단 고정 캘린더, 카테고리 필터, 왼쪽 스와이프 수정/삭제 인터랙션.
-  - `Screen 3 (거래 기록 입력)`: 선택된 유형에 따른 가변 입력 폼 (환율/원화 택1, 구분 칩), 입력 즉시 작동하는 실시간 미리보기.
-- **정책 준수 확인**: 앱 내에 투자 자문, 금융 상품 중개, 외부 링크가 포함되지 않도록 완결 구조 유지.
-- 최종 결과물 제출.
+### 거래 유형별 처리
 
-### Step 5: 성과 및 정확도 리포트 (Metrics & Verification)
+- buy: 투입 원화 증가, 환전 달러 증가, 보유 달러 증가
+- sell: 평균단가 기준 투입 원화 비례 차감, 보유 달러 감소
+- change plus: 보유 달러 증가만 (투입 원화/평균단가 변동 없음)
+- change minus: 보유 달러 감소만 (투입 원화/평균단가 변동 없음)
 
-기능 구현이 완료되면 아래 지표를 바탕으로 리포트를 작성한다.
+### 손익 계산
 
-1. **데이터 및 계산 정합성 (Data Integrity):**
-   - 기획서 3-1~3-4 섹션의 계산 예시 데이터(예: $1,000 @ ₩1,400 + $1,000 @ ₩1,450 계산 시 평균단가 ₩1,425 도출 여부)를 가상 데이터로 넣어 검증한 결과 보고.
-   - `localStorage` 동기화 시점 및 예외 처리 상태 점검.
-2. **문서 업데이트 (Final Documentation):**
-   - 검증 결과와 엣지케이스 처리 내역을 `docs/features/{feature-name}.md` 하단의 **'Performance & Metrics'** 섹션에 기록.
+- 현재 원화 환산액 = 현재 보유 달러 × 현재 환율
+- 손익 = 현재 원화 환산액 - 총 투입 원화
 
----
+### sell 달러 차감 우선순위
 
-## 3. 기술 스택 및 환경 (Tech Stack)
+- 환전 달러(exchangedDollarAmount)에서 먼저 차감
+- 환전 달러 소진 후 change로 생긴 달러에서 차감
 
-- **Framework**: React.js
-- **Language**: TypeScript
-- **Styling**: TailwindCSS (TDS 스타일 가이드 기반 모바일 퍼스트 레이아웃)
-- **Data & State**: React Hooks + Toss SDK Bridge Storage (네이티브 키-밸류 저장소)
-- **SDK**: Toss App Bridge SDK (기기 데이터 저장 및 웹뷰 제어)
-- **API**: 한국수출입은행 OpenAPI (실시간 기준환율 조회용)
-- **Icons**: TDS 전용 아이콘
+## Storage 전략
 
----
+- SDK Storage(@apps-in-toss/web-framework) 우선 시도
+- 실패 시 localStorage 폴백
+- 앱 시작 시 한 번만 로드 → 메모리(Zustand)에서 관리
+- 변경 시에만 Storage에 저장
 
-## 4. 디렉토리 구조 (Directory Structure)
+## 환율 API
 
-기획서의 저장 방식과 Pages Router 특성을 반영한 아키텍처를 유지한다.
+- 한국수출입은행 OpenAPI
+- URL: https://www.koreaexim.go.kr/site/program/financial/exchangeJSON
+- 파라미터: authkey(VITE_EXCHANGE_RATE_API_KEY), data=AP01, cur_code=USD
+- 필드: deal_bas_r (매매기준율)
+- 1시간 캐시, 실패 시 마지막 저장 환율 사용
+
+## 디자인 원칙
+
+- 토스 TDS 컴포넌트 우선 사용
+- 하단 고정 면책 고지: "한국수출입은행 기준환율 기반 단순 계산입니다. 투자 조언을 제공하지 않습니다."
+- 거래 유형 색상: buy=파란계열, sell=빨간계열, change=초록계열
+
+## 숫자 포맷 규칙
+
+- 원화: ₩1,425,000
+- 달러: $2,500
+- 환율: ₩1,425
+- 손익률: +21.1% / -3.2%
+- 손익 금액: +₩600,000 / -₩22,500
+
+## 정책/제약
+
+- 투자 조언 없음, 수치 계산만 표시
+- 외부 링크 금지 (토스 미니앱 정책)
+- 금융 상품 추천 금지
+- change 타입 dollarAmount는 항상 양수로 저장

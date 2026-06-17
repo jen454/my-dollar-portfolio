@@ -2,7 +2,7 @@ import { ListRow } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction } from "../types";
 import { getSignedChangeAmount } from "../utils/calculator";
-import { formatDollar } from "../utils/format";
+import { formatSignedDollar } from "../utils/formatter";
 import { typeMeta } from "./TransactionRow";
 
 function getSignedDelta(tx: DollarTransaction): number {
@@ -65,7 +65,7 @@ export function TransactionListRow({
       right={
         <div style={{ minWidth: "74px", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
           <ListRow.Text typography="t6" fontWeight="bold" color={deltaColor}>
-            {formatDollar(delta)}
+            {formatSignedDollar(delta)}
           </ListRow.Text>
           <ListRow.Text typography="t7" color={colors.grey600}>
             ${dollarBalance.toLocaleString("en-US")}
