@@ -3,7 +3,6 @@ import {
   ListRow,
   TextButton,
   Text,
-  Border,
 } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import { useNavigate } from "react-router-dom";
@@ -129,7 +128,7 @@ export function HomeDashboardPage() {
                 {formatProfitKrw(summary.profitKrw)} ({summary.profitRate.toFixed(2)}%)
               </Text>
             </div>
-            <Border variant="full" />
+            <div style={{ height: 1, background: colors.grey100, margin: "0 20px" }} />
             {/* 세부 정보 리스트 */}
             <div style={colFull}>
               <ListRow
