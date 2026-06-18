@@ -93,6 +93,44 @@ export const mockTransactions: DollarTransaction[] = [
     krwAmount: 299986,
   },
 
+  // ── 매도차익 ────────────────────────────
+  {
+    id: "tx-25-sell-1",
+    type: "change",
+    title: "매도차익",
+    date: "2025.09.27",
+    dollarAmount: 0.03,
+    direction: "plus",
+    memo: "매도차익",
+  },
+  {
+    id: "tx-25-sell-2",
+    type: "change",
+    title: "매도차익",
+    date: "2025.10.14",
+    dollarAmount: 6.68,
+    direction: "plus",
+    memo: "매도차익",
+  },
+  {
+    id: "tx-25-sell-3",
+    type: "change",
+    title: "매도차익",
+    date: "2025.10.21",
+    dollarAmount: 15.59,
+    direction: "plus",
+    memo: "매도차익",
+  },
+  {
+    id: "tx-25-sell-4",
+    type: "change",
+    title: "매도차익",
+    date: "2025.11.05",
+    dollarAmount: 12.07,
+    direction: "plus",
+    memo: "매도차익",
+  },
+
   // ── 배당금 ──────────────────────────────
   {
     id: "tx-25-div-10",
@@ -261,6 +299,35 @@ export const mockTransactions: DollarTransaction[] = [
     exchangeRate: 1513.31,
     dollarAmount: 31.24,
     krwAmount: 47275,
+  },
+
+  // ── 매도차익 ────────────────────────────
+  {
+    id: "tx-26-sell-1",
+    type: "change",
+    title: "매도차익",
+    date: "2026.02.20",
+    dollarAmount: 0.77,
+    direction: "plus",
+    memo: "매도차익",
+  },
+  {
+    id: "tx-26-sell-2",
+    type: "change",
+    title: "매도차익",
+    date: "2026.02.24",
+    dollarAmount: 4.54,
+    direction: "plus",
+    memo: "매도차익",
+  },
+  {
+    id: "tx-26-sell-3",
+    type: "change",
+    title: "매도차익",
+    date: "2026.04.02",
+    dollarAmount: 1.19,
+    direction: "plus",
+    memo: "매도차익",
   },
 
   // ── 배당금 ──────────────────────────────

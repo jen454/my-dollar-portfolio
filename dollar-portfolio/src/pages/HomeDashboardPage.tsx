@@ -4,6 +4,7 @@ import {
   TextButton,
   Text,
 } from "@toss/tds-mobile";
+import { PageSpinner } from "../components/PageSpinner";
 import { colors } from "@toss/tds-colors";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
@@ -40,7 +41,7 @@ const gridItemStyle = {
 
 export function HomeDashboardPage() {
   const navigate = useNavigate();
-  const { storage, summary, recentTransactions } = useDollarPortfolio();
+  const { storage, summary, recentTransactions, isLoaded } = useDollarPortfolio();
   const rateBaseDate = useRecordStore((s) => s.rateBaseDate);
   const balanceMap = useMemo(
     () => buildTransactionBalanceMap(storage.transactions),
@@ -51,6 +52,9 @@ export function HomeDashboardPage() {
     summary.rateDiffFromAverage >= 0
       ? `▲ ${formatKrw(summary.rateDiffFromAverage)}`
       : `▼ ${formatKrw(summary.rateDiffFromAverage)}`;
+  const isEmpty = isLoaded && storage.transactions.length === 0;
+
+  if (!isLoaded) return <PageSpinner />;
 
   return (
     <main style={{ display: "flex", flexDirection: "column", width: 'calc(100% - 36px)', minHeight: "100vh", margin: '0 auto', padding: "12px 0" }}>
@@ -119,6 +123,11 @@ export function HomeDashboardPage() {
           </div>
         </div>
 
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", background: colors.yellow50, borderRadius: "15px", padding: "10px 14px" }}>
+          <Text typography="t7" fontWeight="bold" color={colors.yellow700}>i</Text>
+          <Text typography="t7" color={colors.yellow700}>주식 매수 수수료 및 거래 금액 소수점 오차로 인해 실제 계좌 보유달러와 소폭 차이가 있을 수 있습니다.</Text>
+        </div>
+
         {/* CARD 2: 원화 환산 손익 */}
         <div style={baseCardStyle}>
           <div style={colFull}>
@@ -163,13 +172,20 @@ export function HomeDashboardPage() {
             a11yRightReflow={false}
           />
           <div style={{ ...baseCardStyle, padding: "6px 0" }}>
-            {recentTransactions.map((transaction) => (
-              <TransactionRow
-                key={transaction.id}
-                transaction={transaction}
-                dollarBalance={balanceMap.get(transaction.id) ?? 0}
-              />
-            ))}
+            {isEmpty ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 20px", gap: "8px" }}>
+                <Text typography="t6" color={colors.grey400}>아직 거래 기록이 없어요</Text>
+                <Text typography="t7" color={colors.grey300}>첫 환전 기록을 추가해보세요</Text>
+              </div>
+            ) : (
+              recentTransactions.map((transaction) => (
+                <TransactionRow
+                  key={transaction.id}
+                  transaction={transaction}
+                  dollarBalance={balanceMap.get(transaction.id) ?? 0}
+                />
+              ))
+            )}
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FixedBottomCTA, BottomSheet, Text } from "@toss/tds-mobile";
+import { PageSpinner } from "../components/PageSpinner";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction, TransactionType } from "../types";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
@@ -28,7 +29,7 @@ const FILTER_OPTIONS: Array<{ name: string; value: string }> = [
 export function TransactionListPage() {
   const navigate = useNavigate();
   const today = new Date();
-  const { storage } = useDollarPortfolio();
+  const { storage, isLoaded } = useDollarPortfolio();
   const deleteTransaction = useRecordStore((s) => s.deleteTransaction);
 
   const [currentMonth, setCurrentMonth] = useState(
@@ -74,6 +75,31 @@ export function TransactionListPage() {
   }, [storage.transactions, year, month, selectedDay, filter]);
 
   const currentFilterLabel = FILTER_OPTIONS.find((o) => o.value === filter)?.name ?? "전체";
+  const isEmpty = isLoaded && storage.transactions.length === 0;
+
+  if (!isLoaded) return <PageSpinner />;
+
+  if (isEmpty) {
+    return (
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: "8px" }}>
+        <Text typography="t5" fontWeight="semibold" color={colors.grey500}>거래 기록이 없어요</Text>
+        <Text typography="t7" color={colors.grey300}>홈에서 첫 환전 기록을 추가해보세요</Text>
+        <FixedBottomCTA
+          size="large"
+          onClick={() => navigate("/add-record")}
+          bottomAccessory={
+            <Text typography="t7" color={colors.greyOpacity600} style={{ margin: "-10px 0 0", lineHeight: "1.5", textAlign: "center" }}>
+              한국수출입은행 기준환율 기반 단순 계산기입니다.
+              <br />
+              투자 조언을 제공하지 않습니다.
+            </Text>
+          }
+        >
+          + 거래 기록 추가
+        </FixedBottomCTA>
+      </main>
+    );
+  }
 
   return (
     <main style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: colors.grey50 }}>
