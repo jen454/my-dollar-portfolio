@@ -2,11 +2,12 @@
   width: 100%;
   min-height: 100vh;
   box-sizing: border-box;
+  background: #f2f4f6;
 }
 
 @media (min-width: 481px) {
   #root {
-    background-color: #ffffff !important;
+    background-color: #f2f4f6 !important;
     max-width: 480px;
     margin: 0 auto;
   }
