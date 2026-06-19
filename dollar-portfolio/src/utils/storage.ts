@@ -7,10 +7,15 @@ export const portfolioStorage = {
   async get(): Promise<DollarPortfolioStorageV1 | null> {
     try {
       const data = await SDKStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : null;
+      if (!data) throw new Error("no data");
+      return JSON.parse(data);
     } catch {
-      const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : null;
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : null;
+      } catch {
+        return null;
+      }
     }
   },
 
@@ -19,7 +24,11 @@ export const portfolioStorage = {
     try {
       await SDKStorage.setItem(STORAGE_KEY, json);
     } catch {
-      localStorage.setItem(STORAGE_KEY, json);
+      try {
+        localStorage.setItem(STORAGE_KEY, json);
+      } catch {
+        throw new Error("저장 공간이 부족해 기록을 저장할 수 없어요.");
+      }
     }
   },
 

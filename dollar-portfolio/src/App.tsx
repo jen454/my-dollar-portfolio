@@ -8,9 +8,10 @@ import { useRecordStore } from "./store/recordStore";
 import "./App.css";
 
 function AppContent() {
-  const { rate, rateBaseDate } = useExchangeRate();
+  const { rate, rateBaseDate, error } = useExchangeRate();
   const setExchangeRate = useRecordStore((s) => s.setExchangeRate);
   const setRateBaseDate = useRecordStore((s) => s.setRateBaseDate);
+  const setRateError = useRecordStore((s) => s.setRateError);
 
   useEffect(() => {
     if (rate > 0) setExchangeRate(rate);
@@ -19,6 +20,10 @@ function AppContent() {
   useEffect(() => {
     if (rateBaseDate) setRateBaseDate(rateBaseDate);
   }, [rateBaseDate, setRateBaseDate]);
+
+  useEffect(() => {
+    setRateError(error);
+  }, [error, setRateError]);
 
   return (
     <Routes>
