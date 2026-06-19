@@ -166,6 +166,7 @@ export function AddRecordPage() {
   const exceedsHoldings = type === "sell" && dollarAmount > availableDollarForSell;
 
   const canSubmit =
+    date.length === 10 &&
     dollarAmount > 0 &&
     (type === "change" || (appliedRate > 0 && appliedKrw > 0)) &&
     !exceedsHoldings;

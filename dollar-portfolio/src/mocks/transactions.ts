@@ -3,7 +3,7 @@
 
 import type { DollarTransaction, DollarPortfolioStorageV1 } from "../types";
 
-export const mockCurrentExchangeRate = 1513;
+export const mockCurrentExchangeRate = 1500;
 
 export const mockTransactions: DollarTransaction[] = [
   // ════════════════════════════════════════

@@ -68,6 +68,14 @@ function formatSearchDate(daysAgo: number): string {
   return `${year}${month}${day}`;
 }
 
+function todayRateDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}.${month}.${day}`;
+}
+
 function resolveResultError(resultCode: number): string {
   switch (resultCode) {
     case 2:
@@ -155,38 +163,40 @@ export function useExchangeRate(): UseExchangeRateResult {
   const [rateBaseDate, setRateBaseDate] = useState<string | null>(cached?.rateBaseDate ?? null);
 
   const fetchRate = useCallback(
-    async (force: boolean) => {
-      if (!force) {
-        const cachedNow = readCache();
-        if (cachedNow && Date.now() - cachedNow.fetchedAt < ONE_HOUR_MS && cachedNow.rateBaseDate) {
-          setRate(cachedNow.rate);
-          setRateBaseDate(cachedNow.rateBaseDate ?? null);
-          setLastFetched(new Date(cachedNow.fetchedAt));
-          return;
-        }
+  async (force: boolean) => {
+    // 1. 캐시 히트(Cache Hit) 여부 확인 로그
+    if (!force) {
+      const cachedNow = readCache();
+      const isToday = cachedNow?.rateBaseDate === todayRateDateString();
+      if (cachedNow && Date.now() - cachedNow.fetchedAt < ONE_HOUR_MS && cachedNow.rateBaseDate && isToday) {
+        setRate(cachedNow.rate);
+        setRateBaseDate(cachedNow.rateBaseDate);
+        setLastFetched(new Date(cachedNow.fetchedAt));
+        return;
       }
+    }
 
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        const apiKey = import.meta.env.VITE_EXCHANGE_RATE_API_KEY ?? "";
-        const { rate: parsedRate, rateBaseDate: baseDate } = await fetchLatestExchangeRate(apiKey);
+    try {
+      const apiKey = import.meta.env.VITE_EXCHANGE_RATE_API_KEY ?? "";
+      const { rate: parsedRate, rateBaseDate: baseDate } = await fetchLatestExchangeRate(apiKey);
 
-        const fetchedAt = Date.now();
-        writeCache({ rate: parsedRate, fetchedAt, rateBaseDate: baseDate });
-        setRate(parsedRate);
-        setRateBaseDate(baseDate);
-        setLastFetched(new Date(fetchedAt));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "환율 조회에 실패했습니다.");
-        setRate(storeRate);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [storeRate],
-  );
+      const fetchedAt = Date.now();
+      writeCache({ rate: parsedRate, fetchedAt, rateBaseDate: baseDate });
+      setRate(parsedRate);
+      setRateBaseDate(baseDate);
+      setLastFetched(new Date(fetchedAt));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "환율 조회에 실패했습니다.");
+      setRate(storeRate);
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [storeRate],
+);
 
   useEffect(() => {
     fetchRate(false);
