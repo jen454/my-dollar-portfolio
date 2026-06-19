@@ -3,7 +3,7 @@ import { useRecordStore } from "../store/recordStore";
 
 const EXCHANGE_RATE_API_URL = import.meta.env.DEV
   ? "/api/exchange-rate"
-  : "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
+  : import.meta.env.VITE_EXCHANGE_RATE_PROXY_URL;
 const CACHE_KEY = "dollar_portfolio_exchange_rate_cache";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const MAX_BUSINESS_DAY_LOOKBACK = 5; // 비영업일 대비 최대 5일 전까지 재조회
@@ -94,10 +94,10 @@ function resolveResultError(resultCode: number): string {
  */
 async function fetchExchangeRateByDate(
   searchDate: string,
-  apiKey: string,
+  apiKey?: string,
 ): Promise<number | null> {
   const url = new URL(EXCHANGE_RATE_API_URL, window.location.origin);
-  url.searchParams.set("authkey", apiKey);
+  if (apiKey) url.searchParams.set("authkey", apiKey);
   url.searchParams.set("data", "AP01");
   url.searchParams.set("searchdate", searchDate);
 
@@ -133,7 +133,7 @@ function formatRateBaseDate(yyyymmdd: string): string {
  * 오늘 날짜부터 최대 MAX_BUSINESS_DAY_LOOKBACK일 전까지 하루씩 앞당겨가며
  * 가장 최근 영업일의 환율을 조회한다.
  */
-async function fetchLatestExchangeRate(apiKey: string): Promise<{ rate: number; rateBaseDate: string }> {
+async function fetchLatestExchangeRate(apiKey?: string): Promise<{ rate: number; rateBaseDate: string }> {
   for (let daysAgo = 0; daysAgo < MAX_BUSINESS_DAY_LOOKBACK; daysAgo += 1) {
     const searchDate = formatSearchDate(daysAgo);
     const rate = await fetchExchangeRateByDate(searchDate, apiKey);
@@ -180,7 +180,7 @@ export function useExchangeRate(): UseExchangeRateResult {
     setError(null);
 
     try {
-      const apiKey = import.meta.env.VITE_EXCHANGE_RATE_API_KEY ?? "";
+      const apiKey = import.meta.env.DEV ? (import.meta.env.VITE_EXCHANGE_RATE_API_KEY ?? "") : undefined;
       const { rate: parsedRate, rateBaseDate: baseDate } = await fetchLatestExchangeRate(apiKey);
 
       const fetchedAt = Date.now();

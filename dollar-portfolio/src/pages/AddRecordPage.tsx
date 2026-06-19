@@ -66,9 +66,9 @@ function applyDateMask(value: string): string {
   return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6)}`;
 }
 
-// 숫자 입력 필드에서 쉼표 구분 표시를 위한 변환 함수
+// 정수 필드(원화)용: 쉼표 추가, 소수점 제거
 function commaizeNumber(value: string | number): string {
-  const numStr = decommaizeNumberToString(value);
+  const numStr = String(value).replaceAll(",", "").replace(/[^0-9]/g, "");
   if (numStr === "") return "";
   return Number(numStr).toLocaleString("en-US");
 }
@@ -77,8 +77,22 @@ function decommaizeNumberToString(value: string | number): string {
   return String(value).replaceAll(",", "").replace(/[^0-9]/g, "");
 }
 
+// 소수점 필드(달러·환율)용: 정수부에 쉼표, 소수점 2자리까지 허용
+function commaizeDecimal(value: string | number): string {
+  const raw = String(value).replaceAll(",", "").replace(/[^0-9.]/g, "");
+  if (raw === "" || raw === ".") return raw;
+  const [intPart, decPart] = raw.split(".");
+  const formattedInt = Number(intPart || "0").toLocaleString("en-US");
+  if (decPart !== undefined) return `${formattedInt}.${decPart.slice(0, 2)}`;
+  return formattedInt;
+}
+
+function decommaizeDecimal(value: string | number): string {
+  return String(value).replaceAll(",", "").replace(/[^0-9.]/g, "");
+}
+
 function toNumber(value: string): number {
-  const parsed = Number(decommaizeNumberToString(value));
+  const parsed = Number(decommaizeDecimal(value));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -319,9 +333,9 @@ export function AddRecordPage() {
               value={dollarInput}
               onChange={(e) => setDollarInput(e.target.value)}
               prefix="$"
-              placeholder="0"
-              inputMode="numeric"
-              format={{ transform: (v) => commaizeNumber(v), reset: (v) => decommaizeNumberToString(v) }}
+              placeholder="0.00"
+              inputMode="text"
+              format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
             />
           )}
         </div>
@@ -336,9 +350,9 @@ export function AddRecordPage() {
               value={rateInput}
               onChange={(e) => setRateInput(e.target.value)}
               prefix="₩"
-              placeholder="0"
-              inputMode="numeric"
-              format={{ transform: (v) => commaizeNumber(v), reset: (v) => decommaizeNumberToString(v) }}
+              placeholder="0.00"
+              inputMode="text"
+              format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
             />
           </div>
         )}
