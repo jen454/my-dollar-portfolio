@@ -136,6 +136,8 @@ export function AddRecordPage() {
 
   const addTransaction = useRecordStore((state) => state.addTransaction);
   const updateTransaction = useRecordStore((state) => state.updateTransaction);
+  const saveError = useRecordStore((state) => state.saveError);
+  const clearSaveError = useRecordStore((state) => state.clearSaveError);
   const { summary } = useDollarPortfolio();
 
   const [type, setType] = useState<TransactionType>(editingTransaction?.type ?? "buy");
@@ -158,6 +160,14 @@ export function AddRecordPage() {
   );
   const [memo, setMemo] = useState<ChangeMemo | null>(editingTransaction?.memo ?? null);
 
+  // 거래 유형 변경 시 관련 입력 초기화
+  function handleTypeChange(newType: TransactionType) {
+    setType(newType);
+    setDollarInput("");
+    setRateInput("");
+    setKrwInput("");
+  }
+
   const rateValue = toNumber(rateInput);
   const krwValue = toNumber(krwInput);
   const dollarInputValue = toNumber(dollarInput);
@@ -169,18 +179,33 @@ export function AddRecordPage() {
   const appliedKrw =
     type === "buy" ? krwValue : type === "sell" ? dollarAmount * appliedRate : 0;
 
-  // sell 시 비교할 현재 보유 달러. 수정 모드에서 기존 sell 기록은 이미 차감된 상태이므로 되돌려서 계산한다.
-  const availableDollarForSell = useMemo(() => {
-    if (isEditMode && editingTransaction?.type === "sell") {
+  // sell/change minus 시 비교할 현재 보유 달러.
+  // 수정 모드에서는 기존 기록이 이미 반영된 상태이므로 원래 값을 되돌려서 계산한다.
+  const availableDollar = useMemo(() => {
+    if (!isEditMode) return summary.currentDollarAmount;
+    if (editingTransaction?.type === "sell") {
+      return summary.currentDollarAmount + Math.abs(editingTransaction.dollarAmount);
+    }
+    if (editingTransaction?.type === "change" && editingTransaction.direction === "minus") {
       return summary.currentDollarAmount + Math.abs(editingTransaction.dollarAmount);
     }
     return summary.currentDollarAmount;
   }, [isEditMode, editingTransaction, summary.currentDollarAmount]);
 
-  const exceedsHoldings = type === "sell" && dollarAmount > availableDollarForSell;
+  const isValidDate = (() => {
+    if (date.length !== 10) return false;
+    const normalized = date.replaceAll(".", "-");
+    const parsed = new Date(`${normalized}T00:00:00`);
+    return !isNaN(parsed.getTime()) && parsed.toISOString().startsWith(normalized);
+  })();
+
+  const exceedsSellHoldings = type === "sell" && dollarAmount > availableDollar;
+  const exceedsChangeHoldings = type === "change" && direction === "minus" && dollarAmount > availableDollar;
+  const exceedsHoldings = exceedsSellHoldings || exceedsChangeHoldings;
+  const noAverageRate = type === "sell" && summary.averageExchangeRate === 0;
 
   const canSubmit =
-    date.length === 10 &&
+    isValidDate &&
     dollarAmount > 0 &&
     (type === "change" || (appliedRate > 0 && appliedKrw > 0)) &&
     !exceedsHoldings;
@@ -195,7 +220,7 @@ export function AddRecordPage() {
   const signedChangeAmount = direction === "minus" ? -dollarAmount : dollarAmount;
   const balanceAfterChange = summary.currentDollarAmount + signedChangeAmount;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
 
     const base = {
@@ -224,13 +249,16 @@ export function AddRecordPage() {
       };
     }
 
+    clearSaveError();
     if (isEditMode && editingTransaction) {
-      updateTransaction(editingTransaction.id, transaction);
+      await updateTransaction(editingTransaction.id, transaction);
     } else {
-      addTransaction(transaction);
+      await addTransaction(transaction);
     }
 
-    navigate("/");
+    if (!useRecordStore.getState().saveError) {
+      navigate("/");
+    }
   }
 
   return (
@@ -257,7 +285,7 @@ export function AddRecordPage() {
               return (
                 <GridList.Item
                   key={option.value}
-                  onClick={() => setType(option.value)}
+                  onClick={() => handleTypeChange(option.value)}
                   style={{
                     cursor: "pointer",
                     borderRadius: "12px",
@@ -294,6 +322,8 @@ export function AddRecordPage() {
             onChange={(e) => setDate(applyDateMask(e.target.value))}
             placeholder="YYYY.MM.DD"
             inputMode="numeric"
+            invalid={!isValidDate && date.length === 10}
+            description={!isValidDate && date.length === 10 ? "올바르지 않은 날짜예요. (예: 2026.06.19)" : undefined}
           />
         </div>
 
@@ -336,6 +366,14 @@ export function AddRecordPage() {
               placeholder="0.00"
               inputMode="text"
               format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
+              invalid={exceedsHoldings}
+              description={
+                exceedsSellHoldings
+                  ? `현재 보유 달러(${formatDollar(availableDollar)})보다 많이 입력했어요.`
+                  : exceedsChangeHoldings
+                  ? `보유 달러(${formatDollar(availableDollar)})보다 많은 달러를 차감할 수 없어요.`
+                  : undefined
+              }
             />
           )}
         </div>
@@ -353,6 +391,7 @@ export function AddRecordPage() {
               placeholder="0.00"
               inputMode="text"
               format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
+              description={noAverageRate ? "환전 기록이 없어 평균단가를 계산할 수 없어요. 손익은 0으로 저장돼요." : undefined}
             />
           </div>
         )}
@@ -426,9 +465,9 @@ export function AddRecordPage() {
         </div>
       </div>
 
-      {exceedsHoldings && (
-        <Text typography="t7" color={colors.red500}>
-          현재 보유 달러({formatDollar(summary.currentDollarAmount)})보다 많이 입력했어요.
+      {saveError && (
+        <Text typography="t7" color={colors.red500} style={{ textAlign: "center" }}>
+          {saveError}
         </Text>
       )}
 

@@ -44,6 +44,7 @@ export function HomeDashboardPage() {
   const navigate = useNavigate();
   const { storage, summary, recentTransactions, isLoaded } = useDollarPortfolio();
   const rateBaseDate = useRecordStore((s) => s.rateBaseDate);
+  const rateError = useRecordStore((s) => s.rateError);
   const balanceMap = useMemo(
     () => buildTransactionBalanceMap(storage.transactions),
     [storage.transactions],
@@ -93,7 +94,13 @@ export function HomeDashboardPage() {
                     <ListRow.Texts type="3RowTypeA"
                       top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 환율</ListRow.Text>}
                       middle={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatRate(summary.currentExchangeRate)}</ListRow.Text>}
-                      bottom={rateBaseDate ? <ListRow.Text typography="t7" color={colors.grey400}>{rateBaseDate} 기준</ListRow.Text> : ""}
+                      bottom={
+                        rateError
+                          ? <ListRow.Text typography="t7" color={colors.yellow500}>환율 조회 실패 · 이전 환율 기준</ListRow.Text>
+                          : rateBaseDate
+                          ? <ListRow.Text typography="t7" color={colors.grey400}>{rateBaseDate} 기준</ListRow.Text>
+                          : ""
+                      }
                     />
                   }
                   right={
