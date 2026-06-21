@@ -465,7 +465,7 @@ export function AddRecordPage() {
                 <PreviewRow
                   label="환전 손익"
                   value={formatProfitKrw(sellProfitThisTime)}
-                  tone={sellProfitThisTime >= 0 ? colors.red500 : colors.blue500}
+                  tone={sellProfitThisTime > 0 ? colors.red500 : sellProfitThisTime < 0 ? colors.blue500 : colors.grey900}
                 />
                 <div style={{ height: 1, background: colors.grey100, margin: "4px 12px" }} />
                 <PreviewRow
