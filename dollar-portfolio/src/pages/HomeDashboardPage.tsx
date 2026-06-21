@@ -49,7 +49,7 @@ export function HomeDashboardPage() {
     () => buildTransactionBalanceMap(storage.transactions),
     [storage.transactions],
   );
-  const profitTone = summary.profitKrw >= 0 ? colors.red500 : colors.blue500;
+  const profitTone = summary.profitKrw > 0 ? colors.red500 : summary.profitKrw < 0 ? colors.blue500 : colors.grey900;
   const rateDiffText =
     summary.rateDiffFromAverage >= 0
       ? `▲ ${formatRate(Math.abs(summary.rateDiffFromAverage))}`
