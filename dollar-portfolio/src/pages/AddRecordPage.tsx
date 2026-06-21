@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Analytics } from "@apps-in-toss/web-framework";
 import {
   Asset,
   FixedBottomCTA,
@@ -218,6 +219,7 @@ export function AddRecordPage() {
     isValidDate &&
     dollarAmount > 0 &&
     (type === "change" || (appliedRate > 0 && appliedKrw > 0)) &&
+    (type !== "change" || memo !== null) &&
     !exceedsHoldings;
 
   const newAverageRateAfterBuy =
@@ -267,6 +269,7 @@ export function AddRecordPage() {
     }
 
     if (!useRecordStore.getState().saveError) {
+      Analytics.click({ log_name: "transaction_save_complete", type });
       navigate("/");
     }
   }
