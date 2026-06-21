@@ -111,30 +111,17 @@ export function HomeDashboardPage() {
                   }
                 />
             </div>
-            {/* 환전 달러 / 현재 보유 달러 그리드 */}
-            <div style={{ display: "grid", width: "100%", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "10px" }}>
-              <div style={gridItemStyle}>
-                <ListRow
-                  border="none" verticalPadding="small" horizontalPadding="small"
-                  contents={
-                    <ListRow.Texts type="2RowTypeA"
-                      top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>환전 달러</ListRow.Text>}
-                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatDollar(summary.exchangedDollarAmount)}</ListRow.Text>}
-                    />
-                  }
-                />
-              </div>
-              <div style={gridItemStyle}>
-                <ListRow
-                  border="none" verticalPadding="small" horizontalPadding="small"
-                  contents={
-                    <ListRow.Texts type="2RowTypeA"
-                      top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 보유달러</ListRow.Text>}
-                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatDollar(summary.currentDollarAmount)}</ListRow.Text>}
-                    />
-                  }
-                />
-              </div>
+            {/* 현재 보유 달러 */}
+            <div style={gridItemStyle}>
+              <ListRow
+                border="none" verticalPadding="small" horizontalPadding="small"
+                contents={
+                  <ListRow.Texts type="2RowTypeA"
+                    top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 보유달러</ListRow.Text>}
+                    bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatDollar(summary.currentDollarAmount)}</ListRow.Text>}
+                  />
+                }
+              />
             </div>
 
           </div>
@@ -220,7 +207,7 @@ export function HomeDashboardPage() {
           <div style={{ height: 1, background: colors.grey100 }} />
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <Text typography="t6" fontWeight="bold" color={colors.grey800}>실제 계좌와 보유달러가 다른 이유</Text>
-            <Text typography="t7" color={colors.grey500}>주식 매수 수수료 및 거래 금액 소수점 오차로 인해 실제 계좌 보유달러와 소폭 차이가 있을 수 있어요.</Text>
+            <Text typography="t7" color={colors.grey500}>달러 변동에서 수수료를 별도로 입력하지 않았거나, 거래 금액 소수점 오차로 인해 실제 계좌 보유달러와 소폭 차이가 있을 수 있어요.</Text>
           </div>
         </div>
       </BottomSheet>
@@ -233,7 +220,14 @@ export function HomeDashboardPage() {
             <div style={{ background: colors.grey50, borderRadius: "10px", padding: "10px 14px" }}>
               <Text typography="t7" color={colors.grey600}>현재 보유달러 × 현재 환율 − 총 투입 원화</Text>
             </div>
-            <Text typography="t7" color={colors.grey500}>배당금·이자로 늘어난 달러도 손익 계산에 반영돼요.</Text>
+            <Text typography="t7" color={colors.grey500}>배당금·이자 등 달러 변동 내역도 손익 계산에 반영돼요.</Text>
+          </div>
+          <div style={{ height: 1, background: colors.grey100 }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <Text typography="t6" fontWeight="bold" color={colors.grey800}>손익률은 어떻게 계산하나요?</Text>
+            <div style={{ background: colors.grey50, borderRadius: "10px", padding: "10px 14px" }}>
+              <Text typography="t7" color={colors.grey600}>손익 ÷ 총 투입 원화 × 100</Text>
+            </div>
           </div>
         </div>
       </BottomSheet>

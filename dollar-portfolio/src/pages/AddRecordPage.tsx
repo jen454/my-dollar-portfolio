@@ -25,7 +25,8 @@ import {
   formatRate,
 } from "../utils/formatter";
 
-const MEMO_OPTIONS: ChangeMemo[] = ["매도차익", "매도손실", "배당금", "계좌이자", "기타"];
+const MEMO_OPTIONS_PLUS: ChangeMemo[] = ["매도차익", "배당금", "계좌이자"];
+const MEMO_OPTIONS_MINUS: ChangeMemo[] = ["매도차익", "수수료"];
 
 const TYPE_OPTIONS: Array<{
   value: TransactionType;
@@ -168,6 +169,11 @@ export function AddRecordPage() {
     setKrwInput("");
   }
 
+  function handleDirectionChange(newDirection: ChangeDirection) {
+    setDirection(newDirection);
+    setMemo(null);
+  }
+
   const rateValue = toNumber(rateInput);
   const krwValue = toNumber(krwInput);
   const dollarInputValue = toNumber(dollarInput);
@@ -196,7 +202,11 @@ export function AddRecordPage() {
     if (date.length !== 10) return false;
     const normalized = date.replaceAll(".", "-");
     const parsed = new Date(`${normalized}T00:00:00`);
-    return !isNaN(parsed.getTime()) && parsed.toISOString().startsWith(normalized);
+    if (isNaN(parsed.getTime())) return false;
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}` === normalized;
   })();
 
   const exceedsSellHoldings = type === "sell" && dollarAmount > availableDollar;
@@ -333,7 +343,7 @@ export function AddRecordPage() {
             <Text typography="t7" fontWeight="medium" color={colors.grey800}>변동 방향</Text>
             <SegmentedControl
               value={direction}
-              onChange={(v) => setDirection(v as ChangeDirection)}
+              onChange={(v) => handleDirectionChange(v as ChangeDirection)}
             >
               <SegmentedControl.Item value="plus">달러 증가</SegmentedControl.Item>
               <SegmentedControl.Item value="minus">달러 감소</SegmentedControl.Item>
@@ -401,7 +411,7 @@ export function AddRecordPage() {
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "6px", width: "100%", boxSizing: "border-box" }}>
             <Text typography="t7" fontWeight="medium" color={colors.grey800} style={{ paddingLeft: "4px" }}>구분</Text>
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {MEMO_OPTIONS.map((option) => {
+            {(direction === "plus" ? MEMO_OPTIONS_PLUS : MEMO_OPTIONS_MINUS).map((option) => {
               const isActive = memo === option;
               return (
                 <button
@@ -436,6 +446,15 @@ export function AddRecordPage() {
                 <PreviewRow label="적용 환율" value={formatRate(appliedRate)} />
                 <PreviewRow label="받은 달러" value={formatDollar(dollarAmount)} />
                 <PreviewRow label="입력 후 평균단가" value={formatRate(newAverageRateAfterBuy)} />
+                <div style={{ height: 1, background: colors.grey100, margin: "4px 12px" }} />
+                <PreviewRow
+                  label="거래 후 총 투입 원화"
+                  value={formatKrw(summary.totalInvestedKrw + appliedKrw)}
+                />
+                <PreviewRow
+                  label="거래 후 현재 보유 달러"
+                  value={formatDollar(summary.currentDollarAmount + dollarAmount)}
+                />
               </>
             )}
             {type === "sell" && (
@@ -444,9 +463,18 @@ export function AddRecordPage() {
                 <PreviewRow label="적용 환율" value={formatRate(appliedRate)} />
                 <PreviewRow label="판매 달러" value={formatDollar(dollarAmount)} />
                 <PreviewRow
-                  label="이번 환전 손익 (평균단가 기준)"
+                  label="환전 손익"
                   value={formatProfitKrw(sellProfitThisTime)}
                   tone={sellProfitThisTime >= 0 ? colors.red500 : colors.blue500}
+                />
+                <div style={{ height: 1, background: colors.grey100, margin: "4px 12px" }} />
+                <PreviewRow
+                  label="거래 후 총 투입 원화"
+                  value={formatKrw(Math.max(0, summary.totalInvestedKrw - summary.averageExchangeRate * dollarAmount))}
+                />
+                <PreviewRow
+                  label="거래 후 현재 보유 달러"
+                  value={formatDollar(Math.max(0, summary.currentDollarAmount - dollarAmount))}
                 />
               </>
             )}
