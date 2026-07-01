@@ -106,7 +106,7 @@ export function TransactionListPage() {
       {/* Sticky calendar header */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: colors.background, boxShadow: "0 1px 0 " + colors.grey100 }}>
         <Calendar
-          transactions={storage.transactions}
+          transactions={filter === "all" ? storage.transactions : storage.transactions.filter((tx) => tx.type === (filter as TransactionType))}
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
           selectedDay={selectedDay}
@@ -140,11 +140,7 @@ export function TransactionListPage() {
         </div>
 
         {/* Transaction groups */}
-        {selectedDay === null ? (
-          <div style={{ textAlign: "center", padding: "56px 0", color: colors.grey400, fontSize: 14 }}>
-            날짜를 선택하면 거래 내역을 볼 수 있어요.
-          </div>
-        ) : groupedTransactions.length === 0 ? (
+        {groupedTransactions.length === 0 ? (
           <div style={{ textAlign: "center", padding: "56px 0", color: colors.grey400, fontSize: 14 }}>
             거래 내역이 없습니다.
           </div>
