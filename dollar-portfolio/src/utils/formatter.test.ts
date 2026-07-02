@@ -4,7 +4,6 @@ import {
   formatDollar,
   formatSignedDollar,
   formatRate,
-  formatProfitRate,
   formatProfitKrw,
 } from "./formatter";
 
@@ -33,13 +32,6 @@ describe("formatRate", () => {
   it("소수 포함", () => expect(formatRate(1432.57)).toBe("₩1,432.57"));
   it("0", () => expect(formatRate(0)).toBe("₩0.00"));
   it("NaN → ₩0.00", () => expect(formatRate(NaN)).toBe("₩0.00"));
-});
-
-describe("formatProfitRate", () => {
-  it("양수 + 부호, 소수점 1자리", () => expect(formatProfitRate(21.1)).toBe("+21.1%"));
-  it("음수 - 부호", () => expect(formatProfitRate(-3.2)).toBe("-3.2%"));
-  it("0", () => expect(formatProfitRate(0)).toBe("+0.0%"));
-  it("NaN → 0.0%", () => expect(formatProfitRate(NaN)).toBe("0.0%"));
 });
 
 describe("formatProfitKrw", () => {

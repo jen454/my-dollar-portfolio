@@ -17,17 +17,7 @@ export function sortTransactionsByDateDesc(transactions: DollarTransaction[]) {
   });
 }
 
-// change 유형은 dollarAmount를 항상 양수로 저장하고 direction으로 부호를 결정한다.
-export function getSignedChangeAmount(transaction: DollarTransaction) {
-  const amount = Math.abs(transaction.dollarAmount);
-  return transaction.direction === "minus" ? -amount : amount;
-}
-
 function getTransactionDollarAmount(transaction: DollarTransaction) {
-  if (transaction.type === "change") {
-    return getSignedChangeAmount(transaction);
-  }
-
   return Math.abs(transaction.dollarAmount);
 }
 
@@ -62,27 +52,18 @@ export function calculatePortfolioSummary(
       continue;
     }
 
-    if (transaction.type === "sell") {
-      const averageExchangeRate =
-        exchangedDollarAmount > 0 ? totalInvestedKrw / exchangedDollarAmount : 0;
-      const investedKrwForSoldDollar = averageExchangeRate * dollarAmount;
+    // sell
+    const averageExchangeRate =
+      exchangedDollarAmount > 0 ? totalInvestedKrw / exchangedDollarAmount : 0;
+    const investedKrwForSoldDollar = averageExchangeRate * dollarAmount;
 
-      exchangedDollarAmount = Math.max(0, exchangedDollarAmount - dollarAmount);
-      totalInvestedKrw = Math.max(0, totalInvestedKrw - investedKrwForSoldDollar);
-      currentDollarAmount = Math.max(0, currentDollarAmount - dollarAmount);
-      continue;
-    }
-
-    // change: 투입 원화/평균단가 변동 없음, 보유 달러만 변동
-    currentDollarAmount += dollarAmount;
+    exchangedDollarAmount = Math.max(0, exchangedDollarAmount - dollarAmount);
+    totalInvestedKrw = Math.max(0, totalInvestedKrw - investedKrwForSoldDollar);
+    currentDollarAmount = Math.max(0, currentDollarAmount - dollarAmount);
   }
 
   const averageExchangeRate =
     exchangedDollarAmount > 0 ? totalInvestedKrw / exchangedDollarAmount : 0;
-  const currentValueKrw = currentDollarAmount * exchangeRate;
-  const profitKrw = currentValueKrw - totalInvestedKrw;
-  const profitRate =
-    totalInvestedKrw > 0 ? (profitKrw / totalInvestedKrw) * 100 : 0;
 
   return {
     averageExchangeRate,
@@ -91,9 +72,6 @@ export function calculatePortfolioSummary(
     exchangedDollarAmount,
     currentDollarAmount,
     totalInvestedKrw,
-    currentValueKrw,
-    profitKrw,
-    profitRate,
   };
 }
 
@@ -105,8 +83,7 @@ export function buildTransactionBalanceMap(
   let balance = 0;
   for (const tx of sorted) {
     if (tx.type === "buy") balance += Math.abs(tx.dollarAmount);
-    else if (tx.type === "sell") balance -= Math.abs(tx.dollarAmount);
-    else balance += getSignedChangeAmount(tx);
+    else balance -= Math.abs(tx.dollarAmount);
     map.set(tx.id, balance);
   }
   return map;

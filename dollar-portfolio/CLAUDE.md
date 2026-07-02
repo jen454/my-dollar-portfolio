@@ -3,138 +3,174 @@
 ## 앱 개요
 
 토스 미니앱 (WebView 방식).
-토스증권 달러 예수금의 평균 환전단가와 투입 원화 대비 손익을 계산해주는 계산기 도구.
+토스증권이 알려주지 않는 달러 평균 환전단가를 계산해주는 도구.
 투자 조언 없음, 순수 계산기.
+
+## 포지셔닝 (중요)
+
+토스증권은 이미 보유 자산의 현재 원화 환산가를 실시간으로 보여줌.
+→ 우리 앱이 "현재 자산 가치"를 보여주는 건 의미 없음.
+
+우리 앱의 유일한 차별점:
+
+1. 평균 환전단가 (메인)
+   → "내가 달러를 평균 얼마에 샀는지"
+   → 토스증권 포함 어떤 증권사도 제공하지 않음
+2. 환전(sell) 시점 확정 손익
+   → "이번에 판 게 내 평균단가보다 유리했는지"
+   → sell 거래 입력 시에만 계산/표시
+
+제거한 기능:
+
+- 현재 보유 달러 입력 → 투입 원화 대비 손익 계산
+  (토스증권이 더 정확하게 제공, 우리 앱의 정체성 흐림)
+
+## 핵심 사용 시나리오
+
+환전할 때마다 1분만 기록
+→ 평균 환전단가 누적 관리
+→ 달러→원화 환전 시 이번 거래 손익 확인
 
 ## 기술 스택
 
 - React + Vite + TypeScript
 - Zustand (상태관리)
 - @apps-in-toss/web-framework (토스 SDK)
-- TDS (Toss Design System) — 토스 미니앱 필수
+- TDS (Toss Design System)
 - SDK Storage (영구 저장) + localStorage 폴백
 
 ## 프로젝트 구조
 
 src/
 ├── pages/
-│ ├── Home/ # 홈 대시보드 (완료)
+│ ├── Home/ # 홈 대시보드 (수정 필요)
 │ ├── Records/ # 캘린더 전체보기 (완료)
-│ └── AddRecord/ # 거래 기록 입력 (미구현)
-├── components/ # 공통 컴포넌트
+│ └── AddRecord/ # 거래 기록 입력 (완료)
+├── components/
 ├── store/
-│ └── recordStore.ts # Zustand 전역 상태 (완료)
+│ └── recordStore.ts
 ├── hooks/
-│ └── useExchangeRate.ts # 환율 API (미구현)
+│ └── useExchangeRate.ts
 ├── utils/
-│ ├── calculator.ts # 순수 계산 함수 (완료)
-│ ├── storage.ts # Storage 어댑터 (완료)
-│ └── formatter.ts # 숫자/날짜 포맷 (미구현)
+│ ├── calculator.ts
+│ ├── storage.ts
+│ └── formatter.ts
 ├── mocks/
-│ └── transactions.ts # 개발용 더미 데이터 (완료)
+│ └── transactions.ts
 └── types/
-└── index.ts # 타입 정의 (완료)
+└── index.ts
 
 ## 구현 현황
 
-- [x] 타입 정의 (types/index.ts)
-- [x] 더미 데이터 분리 (mocks/transactions.ts)
-- [x] 계산 로직 (utils/calculator.ts)
-- [x] Storage 어댑터 (utils/storage.ts)
-- [x] Zustand store (store/recordStore.ts)
-- [x] 홈 대시보드 (pages/Home)
-- [x] 캘린더 전체보기 (pages/Records)
-- [x] 숫자 포맷 유틸 (utils/formatter.ts)
-- [ ] 환율 API 훅 (hooks/useExchangeRate.ts)
-- [x] 거래 입력 화면 (pages/AddRecord)
+- [x] 타입 정의
+- [x] 더미 데이터
+- [x] 계산 로직
+- [x] Storage 어댑터
+- [x] Zustand store
+- [x] 환율 API 훅
+- [x] 캘린더 전체보기
+- [x] 거래 입력 화면
+- [x] 홈 대시보드 리디자인
+- [x] 빈 상태 화면
 - [x] 스와이프 수정/삭제
-- [ ] 빈 상태 / 로딩 상태 처리
+- [x] change 거래 유형 제거
 
 ## 핵심 타입
 
 ```typescript
-type TransactionType = "buy" | "sell" | "change";
-type ChangeDirection = "plus" | "minus";
-type ChangeMemo = "매도차익" | "매도손실" | "배당금" | "이자" | "기타";
+type TransactionType = "buy" | "sell";
 
 interface DollarTransaction {
   id: string;
   type: TransactionType;
   title: string;
-  date: string; // 'YYYY.MM.DD'
-  exchangeRate?: number; // buy/sell만
-  dollarAmount: number; // change는 항상 양수, direction으로 부호 결정
-  krwAmount?: number; // buy/sell만
-  direction?: ChangeDirection; // change만
-  memo?: ChangeMemo; // change만
+  date: string;
+  exchangeRate?: number;
+  dollarAmount: number;
+  krwAmount?: number;
+  profitKrw?: number; // sell 시 환전 손익 (저장 시점 평균단가 기준)
   createdAt?: number;
-}
-
-interface DollarPortfolioStorageV1 {
-  version: 1;
-  transactions: DollarTransaction[];
-  updatedAt: string;
 }
 ```
 
-## 핵심 비즈니스 로직
+## 핵심 계산 로직
 
-### 평균 환전단가
+### 평균 환전단가 (핵심 지표)
 
-- 가중평균: 총 투입 원화 ÷ 총 환전 달러
+가중평균: 총 투입 원화 ÷ 총 환전 달러
+
 - buy 기록만 계산에 포함
-- change는 평균단가/투입 원화 변동 없음
 - sell 시 평균단가 유지, 투입 원화/환전 달러 비례 차감
+
+### sell 시점 확정 손익 (보조 지표)
+
+이번 환전 손익 = (적용 환율 - 평균 환전단가) × 환전 달러
+→ sell 거래 입력/표시 시에만 보여줌
+→ 미실현 손익(보유 중 자산 평가)은 표시하지 않음
 
 ### 거래 유형별 처리
 
-- buy: 투입 원화 증가, 환전 달러 증가, 보유 달러 증가
-- sell: 평균단가 기준 투입 원화 비례 차감, 보유 달러 감소
-- change plus: 보유 달러 증가만 (투입 원화/평균단가 변동 없음)
-- change minus: 보유 달러 감소만 (투입 원화/평균단가 변동 없음)
+- buy: 투입 원화 증가, 환전 달러 증가, 잔액 증가
+- sell: 평균단가 기준 투입 원화 비례 차감, 잔액 감소, 손익 계산
 
-### 손익 계산
+## 홈 대시보드 구성
 
-- 현재 원화 환산액 = 현재 보유 달러 × 현재 환율
-- 손익 = 현재 원화 환산액 - 총 투입 원화
+CARD 1 (환율 및 달러 요약)
 
-### sell 달러 차감 우선순위
+- 평균 환전단가 (최상단, 가장 크게)
+- 현재 환율 비교 (평균단가 대비 유리/불리)
+- 총 투입 원화 (참고용)
 
-- 환전 달러(exchangedDollarAmount)에서 먼저 차감
-- 환전 달러 소진 후 change로 생긴 달러에서 차감
+CARD 2 (환전 내역)
+
+- 최근 환전 내역 (거래별 잔액 표시)
+- 전체보기 링크
+
+환전 기록하기 버튼 (하단 고정)
+
+[sell 거래 내역에만 표시]
+
+수령 원화 옆 괄호에 이번 환전 손익 (₩750,000 (+₩39,000))
+
+## 빈 상태 메시지
+
+"환전하실 때마다
+1분만 기록해두세요
+내 달러 평균 환전단가를
+쌓아갈 수 있어요"
 
 ## Storage 전략
 
-- SDK Storage(@apps-in-toss/web-framework) 우선 시도
+- SDK Storage 우선 시도
 - 실패 시 localStorage 폴백
-- 앱 시작 시 한 번만 로드 → 메모리(Zustand)에서 관리
+- 앱 시작 시 한 번만 로드 → Zustand에서 관리
 - 변경 시에만 Storage에 저장
 
 ## 환율 API
 
 - 한국수출입은행 OpenAPI
-- URL: https://www.koreaexim.go.kr/site/program/financial/exchangeJSON
-- 파라미터: authkey(VITE_EXCHANGE_RATE_API_KEY), data=AP01, cur_code=USD
+- URL: https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
 - 필드: deal_bas_r (매매기준율)
-- 1시간 캐시, 실패 시 마지막 저장 환율 사용
+- 환경변수: VITE_EXCHANGE_RATE_API_KEY
 
 ## 디자인 원칙
 
 - 토스 TDS 컴포넌트 우선 사용
-- 하단 고정 면책 고지: "한국수출입은행 기준환율 기반 단순 계산입니다. 투자 조언을 제공하지 않습니다."
-- 거래 유형 색상: buy=파란계열, sell=빨간계열, change=초록계열
+- 손익 양수: red500 (빨간색)
+- 손익 음수: blue500 (파란색)
+- 거래 유형 색상: buy(달러로 환전)=파란색, sell(원화로 환전)=회색(구분 없음)
+- 내역 리스트 아이콘 배경: 리스트 배경색과 동일하게 (튀지 않도록)
+- 하단 면책 고지: "한국수출입은행 기준환율 기반 단순 계산입니다. 투자 조언을 제공하지 않습니다."
 
-## 숫자 포맷 규칙
+## 숫자 포맷
 
 - 원화: ₩1,425,000
 - 달러: $2,500
 - 환율: ₩1,425
-- 손익률: +21.1% / -3.2%
 - 손익 금액: +₩600,000 / -₩22,500
 
 ## 정책/제약
 
 - 투자 조언 없음, 수치 계산만 표시
-- 외부 링크 금지 (토스 미니앱 정책)
+- 외부 링크 금지
 - 금융 상품 추천 금지
-- change 타입 dollarAmount는 항상 양수로 저장

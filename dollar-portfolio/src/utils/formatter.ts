@@ -39,15 +39,6 @@ export function formatRate(rate: number): string {
 }
 
 /**
- * 손익률 포맷 (부호 포함, 소수점 1자리). 예: +21.1% / -3.2%
- */
-export function formatProfitRate(rate: number): string {
-  if (rate === undefined || rate === null || isNaN(rate)) return "0.0%";
-  const sign = rate >= 0 ? "+" : "-";
-  return `${sign}${Math.abs(rate).toFixed(1)}%`;
-}
-
-/**
  * 손익 금액 포맷 (부호 포함). 예: +₩600,000 / -₩22,500
  */
 export function formatProfitKrw(amount: number): string {
