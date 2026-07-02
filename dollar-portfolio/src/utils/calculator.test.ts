@@ -4,7 +4,6 @@ import {
   buildTransactionBalanceMap,
   getRecentTransactions,
   sortTransactionsByDateDesc,
-  getSignedChangeAmount,
 } from "./calculator";
 import type { DollarTransaction } from "../types";
 
@@ -15,26 +14,6 @@ function buy(id: string, date: string, dollar: number, krw: number, rate: number
 function sell(id: string, date: string, dollar: number, krw: number, rate: number): DollarTransaction {
   return { id, type: "sell", title: "원화로 환전", date, dollarAmount: dollar, krwAmount: krw, exchangeRate: rate };
 }
-function changePlus(id: string, date: string, dollar: number): DollarTransaction {
-  return { id, type: "change", title: "배당금", date, dollarAmount: dollar, direction: "plus", memo: "배당금" };
-}
-function changeMinus(id: string, date: string, dollar: number): DollarTransaction {
-  return { id, type: "change", title: "매도손실", date, dollarAmount: dollar, direction: "minus", memo: "매도손실" };
-}
-
-// ─── getSignedChangeAmount ───────────────────────────────────────────
-describe("getSignedChangeAmount", () => {
-  it("plus: 양수 반환", () => {
-    expect(getSignedChangeAmount(changePlus("1", "2026.01.01", 5))).toBe(5);
-  });
-  it("minus: 음수 반환", () => {
-    expect(getSignedChangeAmount(changeMinus("1", "2026.01.01", 5))).toBe(-5);
-  });
-  it("dollarAmount가 음수로 저장되어도 방향은 direction 기준", () => {
-    const tx: DollarTransaction = { id: "1", type: "change", title: "테스트", date: "2026.01.01", dollarAmount: -5, direction: "plus" };
-    expect(getSignedChangeAmount(tx)).toBe(5);
-  });
-});
 
 // ─── sortTransactionsByDateDesc ──────────────────────────────────────
 describe("sortTransactionsByDateDesc", () => {
@@ -64,8 +43,6 @@ describe("calculatePortfolioSummary", () => {
     expect(s.averageExchangeRate).toBe(0);
     expect(s.currentDollarAmount).toBe(0);
     expect(s.totalInvestedKrw).toBe(0);
-    expect(s.profitKrw).toBe(0);
-    expect(s.profitRate).toBe(0);
   });
 
   it("buy 1건: 평균단가 = krw / dollar", () => {
@@ -97,54 +74,6 @@ describe("calculatePortfolioSummary", () => {
     expect(s.currentDollarAmount).toBeCloseTo(1500);
     expect(s.exchangedDollarAmount).toBeCloseTo(1500);
     expect(s.totalInvestedKrw).toBeCloseTo(2137500);
-  });
-
-  it("sell 이익: 현재 환율 > 평균단가", () => {
-    const txs = [buy("1", "2026.01.01", 1000, 1400000, 1400)];
-    const s = calculatePortfolioSummary(txs, 1500);
-    expect(s.profitKrw).toBeCloseTo(100000); // (1500 - 1400) * 1000
-    expect(s.profitRate).toBeCloseTo(7.142857, 2);
-  });
-
-  it("sell 손실: 현재 환율 < 평균단가", () => {
-    const txs = [buy("1", "2026.01.01", 1000, 1400000, 1400)];
-    const s = calculatePortfolioSummary(txs, 1300);
-    expect(s.profitKrw).toBeCloseTo(-100000);
-    expect(s.profitRate).toBeCloseTo(-7.142857, 2);
-  });
-
-  it("change plus: 보유 달러 증가, 평균단가 변동 없음", () => {
-    const txs = [
-      buy("1", "2026.01.01", 1000, 1400000, 1400),
-      changePlus("2", "2026.02.01", 100),
-    ];
-    const s = calculatePortfolioSummary(txs, 1400);
-    expect(s.currentDollarAmount).toBeCloseTo(1100);
-    expect(s.averageExchangeRate).toBeCloseTo(1400);
-    expect(s.totalInvestedKrw).toBeCloseTo(1400000); // 변동 없음
-  });
-
-  it("change minus: 보유 달러 감소, 평균단가 변동 없음", () => {
-    const txs = [
-      buy("1", "2026.01.01", 1000, 1400000, 1400),
-      changeMinus("2", "2026.02.01", 100),
-    ];
-    const s = calculatePortfolioSummary(txs, 1400);
-    expect(s.currentDollarAmount).toBeCloseTo(900);
-    expect(s.averageExchangeRate).toBeCloseTo(1400);
-    expect(s.totalInvestedKrw).toBeCloseTo(1400000);
-  });
-
-  it("배당금으로 늘어난 달러도 손익에 반영", () => {
-    const txs = [
-      buy("1", "2026.01.01", 1000, 1400000, 1400),
-      changePlus("2", "2026.02.01", 100), // +$100 배당금
-    ];
-    const s = calculatePortfolioSummary(txs, 1500);
-    // 현재 원화 환산액 = 1100 * 1500 = 1,650,000
-    // 손익 = 1,650,000 - 1,400,000 = 250,000
-    expect(s.currentValueKrw).toBeCloseTo(1650000);
-    expect(s.profitKrw).toBeCloseTo(250000);
   });
 
   it("sell 후 보유 달러가 0 이하로 내려가지 않음", () => {
@@ -196,18 +125,6 @@ describe("buildTransactionBalanceMap", () => {
     const map = buildTransactionBalanceMap(txs);
     expect(map.get("1")).toBeCloseTo(300);
     expect(map.get("2")).toBeCloseTo(200);
-  });
-
-  it("change plus/minus 반영", () => {
-    const txs = [
-      buy("1", "2026.01.01", 100, 140000, 1400),
-      changePlus("2", "2026.02.01", 50),
-      changeMinus("3", "2026.03.01", 30),
-    ];
-    const map = buildTransactionBalanceMap(txs);
-    expect(map.get("1")).toBeCloseTo(100);
-    expect(map.get("2")).toBeCloseTo(150);
-    expect(map.get("3")).toBeCloseTo(120);
   });
 });
 

@@ -53,7 +53,11 @@ export const useRecordStore = create<RecordStore>((set, get) => ({
   loadFromStorage: async () => {
     const saved = await portfolioStorage.get();
     if (saved) {
-      set({ storage: saved, isLoaded: true });
+      // 과거 change 유형으로 저장된 기록은 더 이상 지원하지 않으므로 제거한다.
+      const transactions = saved.transactions.filter(
+        (tx): tx is DollarTransaction => tx.type === "buy" || tx.type === "sell",
+      );
+      set({ storage: { ...saved, transactions }, isLoaded: true });
       return;
     }
 
