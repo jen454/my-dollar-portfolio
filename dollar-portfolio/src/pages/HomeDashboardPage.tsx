@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
 import { useRecordStore } from "../store/recordStore";
 import { buildTransactionBalanceMap } from "../utils/calculator";
-import { formatKrw, formatRate } from "../utils/formatter";
+import { formatRate } from "../utils/formatter";
 import { TransactionRow } from "../components/TransactionRow";
 import { RecordCTA } from "../components/RecordCTA";
 
@@ -58,7 +58,7 @@ export function HomeDashboardPage() {
       <section style={{ ...colFull, gap: "12px" }}>
         {/* CARD 1: 환율 및 달러 요약 */}
         <div style={baseCardStyle}>
-          <div style={{ ...colFull, padding: "12px", gap: "10px" }}>
+          <div style={{ ...colFull, padding: "12px", gap: "12px" }}>
             {/* 메인 자산 (평균 환전 단가) */}
               <ListRow
                 border="none"
@@ -75,7 +75,7 @@ export function HomeDashboardPage() {
                         </button>
                       </div>
                     }
-                    bottom={<ListRow.Text typography="t4" fontWeight="bold" color={colors.grey800}>{formatRate(summary.averageExchangeRate)}</ListRow.Text>}
+                    bottom={<ListRow.Text typography="t3" fontWeight="bold" color={colors.grey800}>{formatRate(summary.averageExchangeRate)}</ListRow.Text>}
                   />
                 }
               />
@@ -84,16 +84,18 @@ export function HomeDashboardPage() {
                 <ListRow
                   border="none" verticalPadding="small" horizontalPadding="small"
                   contents={
-                    <ListRow.Texts type="3RowTypeA"
-                      top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 환율</ListRow.Text>}
-                      middle={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatRate(summary.currentExchangeRate)}</ListRow.Text>}
-                      bottom={
-                        rateError
-                          ? <ListRow.Text typography="t7" color={colors.yellow500}>환율 조회 실패 · 이전 환율 기준</ListRow.Text>
-                          : rateBaseDate
-                          ? <ListRow.Text typography="t7" color={colors.grey400}>{rateBaseDate} 기준</ListRow.Text>
-                          : ""
+                    <ListRow.Texts type="2RowTypeA"
+                      top={
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                          <ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 환율</ListRow.Text>
+                          {rateError ? (
+                            <ListRow.Text typography="t7" color={colors.yellow500}>· 조회 실패, 이전 환율</ListRow.Text>
+                          ) : rateBaseDate ? (
+                            <ListRow.Text typography="t7" color={colors.grey400}>· {rateBaseDate.slice(5)} 기준</ListRow.Text>
+                          ) : null}
+                        </div>
                       }
+                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatRate(summary.currentExchangeRate)}</ListRow.Text>}
                     />
                   }
                   right={
@@ -104,19 +106,6 @@ export function HomeDashboardPage() {
                   }
                 />
             </div>
-            {/* 총 투입 원화 */}
-            <div style={gridItemStyle}>
-              <ListRow
-                border="none" verticalPadding="small" horizontalPadding="small"
-                contents={
-                  <ListRow.Texts type="2RowTypeA"
-                    top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>총 투입 원화</ListRow.Text>}
-                    bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatKrw(summary.totalInvestedKrw)}</ListRow.Text>}
-                  />
-                }
-              />
-            </div>
-
           </div>
         </div>
 
@@ -131,8 +120,8 @@ export function HomeDashboardPage() {
           <div style={{ ...baseCardStyle, padding: "6px 0" }}>
             {isEmpty ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "32px 20px", gap: "8px" }}>
-                <Text typography="t6" color={colors.grey400} style={{ textAlign: "center" }}>환전하실 때마다 1분만 기록해보세요</Text>
-                <Text typography="t7" color={colors.grey300} style={{ textAlign: "center" }}>평균 환전단가를 쌓아갈 수 있어요</Text>
+                <Text typography="t6" color={colors.grey400} style={{ textAlign: "center" }}>다음 환전부터 1분만 기록해보세요</Text>
+                <Text typography="t7" color={colors.grey300} style={{ textAlign: "center" }}>지난 내역은 나중에 채워도 돼요. 기록이 쌓이면 평균 환전단가가 보여요</Text>
               </div>
             ) : (
               recentTransactions.map((transaction, index) => (
@@ -159,14 +148,14 @@ export function HomeDashboardPage() {
             <Text typography="t6" fontWeight="bold" color={colors.grey800}>평균 환전단가란?</Text>
             <Text typography="t7" color={colors.grey600}>원화→달러 환전 기록을 기반으로 계산한 가중평균 단가예요.</Text>
             <div style={{ background: colors.grey50, borderRadius: "10px", padding: "10px 14px", marginTop: "2px" }}>
-              <Text typography="t7" color={colors.grey600}>총 투입 원화 ÷ 총 환전 달러 = 평균 환전단가</Text>
+              <Text typography="t7" color={colors.grey600}>보유 달러 원금 ÷ 보유 달러 = 평균 환전단가</Text>
             </div>
-            <Text typography="t7" color={colors.grey500}>환전(sell) 손익은 평균단가에 영향을 주지 않아요.</Text>
+            <Text typography="t7" color={colors.grey500}>원화로 환전하면 평균단가만큼만 원금에서 빠져요. 환전 손익은 원금과 평균단가에 영향을 주지 않아요.</Text>
           </div>
           <div style={{ height: 1, background: colors.grey100 }} />
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <Text typography="t6" fontWeight="bold" color={colors.grey800}>실제 계좌와 잔액이 다른 이유</Text>
-            <Text typography="t7" color={colors.grey500}>배당금·이자 등 환전 없이 늘어난 달러는 이 앱에 기록되지 않아, 실제 계좌 잔액과 차이가 있을 수 있어요.</Text>
+            <Text typography="t7" color={colors.grey500}>배당금·이자 등 환전 없이 늘어난 달러는 이 앱에 기록되지 않아, 실제 계좌 잔액과 차이가 있을 수 있어요. 기록된 달러보다 많이 팔면 초과분은 원가를 알 수 없어 손익 없이 계산돼요.</Text>
           </div>
           <div style={{ height: 1, background: colors.grey100 }} />
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>

@@ -29,7 +29,7 @@ export function useDollarPortfolio(): DollarPortfolioState & { isLoaded: boolean
   );
 
   const recentTransactions = useMemo(
-    () => getRecentTransactions(resolvedStorage.transactions, 4),
+    () => getRecentTransactions(resolvedStorage.transactions, 5),
     [resolvedStorage.transactions],
   );
 

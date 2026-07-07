@@ -39,8 +39,12 @@ export function TransactionRow({
 }) {
   const meta = typeMeta[transaction.type];
   const delta = getSignedDelta(transaction);
+  // 올해 거래는 MM.DD로 줄이고, 연도가 다르면 모호하지 않게 풀어 쓴다
+  const dateText = transaction.date.startsWith(String(new Date().getFullYear()))
+    ? transaction.date.slice(5)
+    : transaction.date;
   const rateText = transaction.exchangeRate ? (
-    <ListRow.Text typography="t7" color={colors.grey700}>
+    <ListRow.Text typography="t7" fontWeight="semibold" color={colors.grey900}>
       {formatRate(transaction.exchangeRate)}
     </ListRow.Text>
   ) : (
@@ -50,7 +54,7 @@ export function TransactionRow({
   return (
     <ListRow
       border="none"
-      verticalPadding="small"
+      verticalPadding="medium"
       horizontalPadding="small"
       left={
         <Asset.Icon
@@ -62,18 +66,13 @@ export function TransactionRow({
       contents={
         layout === "detail" ? (
           <ListRow.Texts
-            type="3RowTypeA"
+            type="2RowTypeA"
             top={
-              <ListRow.Text typography="t7" fontWeight="medium" color={colors.grey600}>
-                {transaction.title}
+              <ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>
+                {transaction.title} · {dateText}
               </ListRow.Text>
             }
-            middle={rateText}
-            bottom={
-              <ListRow.Text typography="t7" color={colors.grey700}>
-                {transaction.date}
-              </ListRow.Text>
-            }
+            bottom={rateText}
           />
         ) : (
           <ListRow.Texts
@@ -102,7 +101,7 @@ export function TransactionRow({
             </ListRow.Text>
           )}
           <ListRow.Text typography="t7" color={colors.grey600}>
-            잔액 {formatDollar(dollarBalance)}
+            기록 잔액 {formatDollar(dollarBalance)}
           </ListRow.Text>
         </div>
       }
