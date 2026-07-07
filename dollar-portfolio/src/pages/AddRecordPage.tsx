@@ -3,10 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Analytics } from "@apps-in-toss/web-framework";
 import {
   Asset,
+  BottomSheet,
   FixedBottomCTA,
   GridList,
   ListRow,
   Text,
+  TextButton,
   TextField,
 } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
@@ -94,7 +96,8 @@ function defaultTitle(type: TransactionType): string {
 
 // 입력 중 이탈(환전 내역 확인 등) 후 재진입 시 복원용 임시 저장
 const DRAFT_KEY = "add-record-draft";
-const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+// 목적이 "환전 내역 확인하러 나갔다 오기"이므로 짧게 유지 — 길면 다음날 유령 값처럼 보임
+const DRAFT_TTL_MS = 2 * 60 * 60 * 1000;
 
 interface RecordDraft {
   type: TransactionType;
@@ -196,6 +199,21 @@ export function AddRecordPage() {
     saveDraft({ type, date, dollarInput, krwInput });
   }, [isEditMode, type, date, dollarInput, krwInput]);
 
+  // draft 복원 사실을 사용자에게 알린다 — 안내 없이 복원하면 "웬 값이 있지?" 하는 버그로 오해함
+  const [restoredFromDraft, setRestoredFromDraft] = useState(
+    () => draft !== null && (draft.dollarInput !== "" || draft.krwInput !== ""),
+  );
+  const [amountHelpOpen, setAmountHelpOpen] = useState(false);
+
+  function discardDraft() {
+    clearDraft();
+    setRestoredFromDraft(false);
+    setType("buy");
+    setDate(todayForStorage());
+    setDollarInput("");
+    setKrwInput("");
+  }
+
   // 퍼널 계측: 폼에서 실제로 입력을 시작했는지 (진입 후 즉시 이탈과 구분)
   // draft 복원으로 값이 이미 있으면 이전 세션에서 집계됐으므로 다시 보내지 않는다
   const [hasStartedInput, setHasStartedInput] = useState(
@@ -234,15 +252,6 @@ export function AddRecordPage() {
   const noAverageRate = type === "sell" && summary.averageExchangeRate === 0;
 
   const canSubmit = isValidDate && dollarAmount > 0 && krwValue > 0;
-
-  // 저장 버튼이 비활성인 이유 안내
-  const submitHint = canSubmit
-    ? null
-    : !isValidDate
-      ? "거래 날짜를 확인해주세요"
-      : type === "buy"
-        ? "낸 원화와 받은 달러를 입력하면 환율이 자동 계산돼요"
-        : "판 달러와 받은 원화를 입력하면 환율이 자동 계산돼요";
 
   const newAverageRateAfterBuy =
     dollarAmount > 0
@@ -341,6 +350,13 @@ export function AddRecordPage() {
         </div>
       </div>
 
+      {restoredFromDraft && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+          <Text typography="t7" color={colors.grey600}>작성하던 내용을 불러왔어요</Text>
+          <TextButton size="small" color={colors.grey500} onClick={discardDraft}>지우기</TextButton>
+        </div>
+      )}
+
       {/* 거래 날짜 / 환전 금액 / 적용 환율 */}
       <div style={{ ...cardBase, padding: '0 0 16px' }}>
         {/* 거래 날짜 */}
@@ -385,7 +401,6 @@ export function AddRecordPage() {
                 placeholder="0.00"
                 inputMode="decimal"
                 format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
-                help="토스증권 거래내역 > 환전에서 거래를 누르면 낸 원화와 받은 달러를 볼 수 있어요"
               />
             </div>
           </>
@@ -418,12 +433,19 @@ export function AddRecordPage() {
                 help={
                   noAverageRate
                     ? "환전 기록이 없어 평균단가를 계산할 수 없어요. 손익은 0으로 저장돼요."
-                    : "토스증권 거래내역 > 환전에서 거래를 누르면 판 달러와 받은 원화를 볼 수 있어요"
+                    : undefined
                 }
               />
             </div>
           </>
         )}
+
+        {/* 금액 확인 경로 도움말 (접힌 형태 — 필요한 사람만 연다) */}
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 20px 0" }}>
+          <TextButton size="small" color={colors.grey500} onClick={() => setAmountHelpOpen(true)}>
+            금액을 어디서 확인하나요?
+          </TextButton>
+        </div>
 
         {/* 미리보기 — 패딩 안쪽에 회색 둥근 박스 */}
         <div style={{ padding: "16px 20px 0" }}>
@@ -431,7 +453,11 @@ export function AddRecordPage() {
             {type === "buy" && (
               <>
                 <PreviewRow label="낸 원화" value={formatKrw(appliedKrw)} />
-                <PreviewRow label="적용 환율" value={formatRate(appliedRate)} />
+                <PreviewRow
+                  label="적용 환율"
+                  value={appliedRate > 0 ? formatRate(appliedRate) : "자동 계산돼요"}
+                  tone={appliedRate > 0 ? undefined : colors.grey400}
+                />
                 <PreviewRow label="받은 달러" value={formatDollar(dollarAmount)} />
                 <PreviewRow label="입력 후 평균단가" value={formatRate(newAverageRateAfterBuy)} />
                 <div style={{ height: 1, background: colors.grey100, margin: "4px 12px" }} />
@@ -448,7 +474,11 @@ export function AddRecordPage() {
             {type === "sell" && (
               <>
                 <PreviewRow label="받은 원화" value={formatKrw(appliedKrw)} />
-                <PreviewRow label="적용 환율" value={formatRate(appliedRate)} />
+                <PreviewRow
+                  label="적용 환율"
+                  value={appliedRate > 0 ? formatRate(appliedRate) : "자동 계산돼요"}
+                  tone={appliedRate > 0 ? undefined : colors.grey400}
+                />
                 <PreviewRow label="판 달러" value={formatDollar(dollarAmount)} />
                 <PreviewRow
                   label="환전 손익"
@@ -494,11 +524,27 @@ export function AddRecordPage() {
         </Text>
       )}
 
-      {!saveError && submitHint && (
-        <Text typography="t7" color={colors.grey600} style={{ textAlign: "center" }}>
-          {submitHint}
-        </Text>
-      )}
+      <BottomSheet
+        open={amountHelpOpen}
+        onClose={() => setAmountHelpOpen(false)}
+        header={<BottomSheet.Header>금액 확인 방법</BottomSheet.Header>}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "4px 20px 32px" }}>
+          <Text typography="t6" fontWeight="bold" color={colors.grey800}>
+            토스증권 &gt; 거래내역 &gt; 환전
+          </Text>
+          <Text typography="t7" color={colors.grey600}>
+            환전 거래를 누르면 {type === "buy" ? "낸 원화와 받은 달러" : "판 달러와 받은 원화"}를 볼 수 있어요.
+            두 금액을 그대로 입력하면 적용 환율은 자동으로 계산돼요.
+          </Text>
+          <div style={{ background: colors.grey50, borderRadius: "10px", padding: "10px 14px" }}>
+            <Text typography="t7" color={colors.grey600}>
+              환율을 직접 입력하지 않아도 돼요. 두 금액으로 계산한 환율이 우대율까지 반영된 실제 환율이에요.
+              원 단위 반올림 때문에 증권사 표시 환율과 소수점 끝자리가 다를 수 있어요.
+            </Text>
+          </div>
+        </div>
+      </BottomSheet>
 
       <FixedBottomCTA
         size="large"

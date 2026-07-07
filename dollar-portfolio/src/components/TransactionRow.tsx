@@ -54,7 +54,7 @@ export function TransactionRow({
   return (
     <ListRow
       border="none"
-      verticalPadding="medium"
+      verticalPadding="large"
       horizontalPadding="small"
       left={
         <Asset.Icon
@@ -89,12 +89,19 @@ export function TransactionRow({
       right={
         <div style={{ minWidth: "96px", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
           {transaction.type === "sell" && transaction.profitKrw !== undefined ? (
-            <ListRow.Text typography="t7" fontWeight="bold" color={colors.grey700}>
-              {formatKrw(transaction.krwAmount ?? 0)}{" "}
-              <span style={{ color: transaction.profitKrw >= 0 ? colors.red500 : colors.blue500 }}>
+            // 금액이 길어지면 손익만 둘째 줄로 내려가도록 요소를 분리 (오른쪽 정렬 유지)
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", columnGap: "4px" }}>
+              <ListRow.Text typography="t7" fontWeight="bold" color={colors.grey700}>
+                {formatKrw(transaction.krwAmount ?? 0)}
+              </ListRow.Text>
+              <ListRow.Text
+                typography="t7"
+                fontWeight="bold"
+                color={transaction.profitKrw >= 0 ? colors.red500 : colors.blue500}
+              >
                 ({formatProfitKrw(transaction.profitKrw)})
-              </span>
-            </ListRow.Text>
+              </ListRow.Text>
+            </div>
           ) : (
             <ListRow.Text typography="t7" fontWeight="bold" color={meta.amountColor}>
               {formatSignedDollar(delta)}
