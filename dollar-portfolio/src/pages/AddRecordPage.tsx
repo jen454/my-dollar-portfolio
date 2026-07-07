@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Analytics } from "@apps-in-toss/web-framework";
 import {
@@ -92,6 +92,46 @@ function defaultTitle(type: TransactionType): string {
   return type === "buy" ? "달러로 환전" : "원화로 환전";
 }
 
+// 입력 중 이탈(환전 내역 확인 등) 후 재진입 시 복원용 임시 저장
+const DRAFT_KEY = "add-record-draft";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface RecordDraft {
+  type: TransactionType;
+  date: string;
+  dollarInput: string;
+  krwInput: string;
+  savedAt: number;
+}
+
+function loadDraft(): RecordDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as RecordDraft;
+    if (Date.now() - draft.savedAt > DRAFT_TTL_MS) return null;
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: Omit<RecordDraft, "savedAt">) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }));
+  } catch {
+    // 저장 실패 시 무시 (draft는 편의 기능)
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // 무시
+  }
+}
+
 function PreviewRow({
   label,
   value,
@@ -130,39 +170,55 @@ export function AddRecordPage() {
   const clearSaveError = useRecordStore((state) => state.clearSaveError);
   const { summary } = useDollarPortfolio();
 
-  const [type, setType] = useState<TransactionType>(editingTransaction?.type ?? "buy");
+  const [draft] = useState(() => (editingTransaction ? null : loadDraft()));
+
+  const [type, setType] = useState<TransactionType>(
+    editingTransaction?.type ?? draft?.type ?? "buy",
+  );
   const [date, setDate] = useState(
-    editingTransaction ? editingTransaction.date : todayForStorage(),
+    editingTransaction ? editingTransaction.date : draft?.date ?? todayForStorage(),
   );
   const [dollarInput, setDollarInput] = useState(
-    editingTransaction && editingTransaction.type === "sell"
+    editingTransaction
       ? String(Math.abs(editingTransaction.dollarAmount))
-      : "",
-  );
-  const [rateInput, setRateInput] = useState(
-    editingTransaction?.exchangeRate ? String(editingTransaction.exchangeRate) : "",
+      : draft?.dollarInput ?? "",
   );
   const [krwInput, setKrwInput] = useState(
-    editingTransaction?.krwAmount ? String(editingTransaction.krwAmount) : "",
+    editingTransaction?.krwAmount
+      ? String(editingTransaction.krwAmount)
+      : draft?.krwInput ?? "",
   );
 
-  // 거래 유형 변경 시 관련 입력 초기화
+  // 입력 중 이탈 대비 draft 저장 (수정 모드 제외)
+  useEffect(() => {
+    if (isEditMode) return;
+    if (dollarInput === "" && krwInput === "") return;
+    saveDraft({ type, date, dollarInput, krwInput });
+  }, [isEditMode, type, date, dollarInput, krwInput]);
+
+  // 퍼널 계측: 폼에서 실제로 입력을 시작했는지 (진입 후 즉시 이탈과 구분)
+  // draft 복원으로 값이 이미 있으면 이전 세션에서 집계됐으므로 다시 보내지 않는다
+  const [hasStartedInput, setHasStartedInput] = useState(
+    () => draft !== null && (draft.dollarInput !== "" || draft.krwInput !== ""),
+  );
+  useEffect(() => {
+    if (hasStartedInput || isEditMode) return;
+    if (dollarInput === "" && krwInput === "") return;
+    setHasStartedInput(true);
+    Analytics.click({ log_name: "transaction_input_start", type });
+  }, [hasStartedInput, isEditMode, dollarInput, krwInput, type]);
+
+  // 두 금액은 유형이 바뀌어도 의미가 유지되므로 초기화하지 않는다
   function handleTypeChange(newType: TransactionType) {
     setType(newType);
-    setDollarInput("");
-    setRateInput("");
-    setKrwInput("");
   }
 
-  const rateValue = toNumber(rateInput);
   const krwValue = toNumber(krwInput);
-  const dollarInputValue = toNumber(dollarInput);
+  const dollarAmount = toNumber(dollarInput);
 
-  // buy: 원화·환율 입력 → 달러 역산 / sell: 달러·환율 입력 → 원화 역산
-  const appliedRate = rateValue;
-  const dollarAmount =
-    type === "buy" ? (appliedRate > 0 ? krwValue / appliedRate : 0) : dollarInputValue;
-  const appliedKrw = type === "buy" ? krwValue : dollarAmount * appliedRate;
+  // 원화·달러 두 금액 입력 → 실제 매매환율 역산 (우대율 반영된 정확한 값)
+  const appliedRate = dollarAmount > 0 ? krwValue / dollarAmount : 0;
+  const appliedKrw = krwValue;
 
   const isValidDate = (() => {
     if (date.length !== 10) return false;
@@ -177,11 +233,16 @@ export function AddRecordPage() {
 
   const noAverageRate = type === "sell" && summary.averageExchangeRate === 0;
 
-  const canSubmit =
-    isValidDate &&
-    dollarAmount > 0 &&
-    appliedRate > 0 &&
-    appliedKrw > 0;
+  const canSubmit = isValidDate && dollarAmount > 0 && krwValue > 0;
+
+  // 저장 버튼이 비활성인 이유 안내
+  const submitHint = canSubmit
+    ? null
+    : !isValidDate
+      ? "거래 날짜를 확인해주세요"
+      : type === "buy"
+        ? "낸 원화와 받은 달러를 입력하면 환율이 자동 계산돼요"
+        : "판 달러와 받은 원화를 입력하면 환율이 자동 계산돼요";
 
   const newAverageRateAfterBuy =
     dollarAmount > 0
@@ -189,8 +250,20 @@ export function AddRecordPage() {
       : summary.averageExchangeRate;
 
   // 평균단가가 없으면(직전에 buy 기록이 모두 사라진 경우) 손익을 계산할 근거가 없으므로 0으로 고정한다.
+  // 기록 잔액을 초과해 파는 달러(주식 수익 등 기록에 없는 달러)는 원가를 알 수 없으므로
+  // 이번 환전 환율을 원가로 간주 → 손익 0. 즉 기록된 잔액 몫까지만 손익을 계산한다.
+  // 수정 모드에서는 summary에 이 거래의 증감이 이미 반영돼 있으므로 되돌려서 잔액을 구한다.
+  const balanceBeforeThis = isEditMode && editingTransaction
+    ? editingTransaction.type === "sell"
+      ? summary.currentDollarAmount + Math.abs(editingTransaction.dollarAmount)
+      : Math.max(0, summary.currentDollarAmount - Math.abs(editingTransaction.dollarAmount))
+    : summary.currentDollarAmount;
+  const profitEligibleDollar = Math.min(dollarAmount, balanceBeforeThis);
+  const isOverBalanceSell = type === "sell" && dollarAmount > balanceBeforeThis;
   const sellProfitThisTime =
-    summary.averageExchangeRate === 0 ? 0 : (appliedRate - summary.averageExchangeRate) * dollarAmount;
+    summary.averageExchangeRate === 0
+      ? 0
+      : (appliedRate - summary.averageExchangeRate) * profitEligibleDollar;
 
   async function handleSubmit() {
     if (!canSubmit) return;
@@ -214,6 +287,7 @@ export function AddRecordPage() {
 
     if (!useRecordStore.getState().saveError) {
       Analytics.click({ log_name: "transaction_save_complete", type });
+      clearDraft();
       navigate("/");
     }
   }
@@ -279,81 +353,103 @@ export function AddRecordPage() {
             onChange={(e) => setDate(applyDateMask(e.target.value))}
             placeholder="YYYY.MM.DD"
             inputMode="numeric"
-            invalid={!isValidDate && date.length === 10}
-            description={!isValidDate && date.length === 10 ? "올바르지 않은 날짜예요. (예: 2026.06.19)" : undefined}
+            hasError={!isValidDate && date.length === 10}
+            help={!isValidDate && date.length === 10 ? "올바르지 않은 날짜예요. (예: 2026.06.19)" : undefined}
           />
         </div>
 
-        {/* 환전 금액: buy는 원화 입력, sell은 달러 입력 */}
-        <div style={colFull}>
-          {type === "buy" ? (
-            <TextField
-              variant="box"
-              label="환전 금액"
-              labelOption="sustain"
-              value={krwInput}
-              onChange={(e) => setKrwInput(e.target.value)}
-              prefix="₩"
-              placeholder="0"
-              inputMode="numeric"
-              format={{ transform: (v) => commaizeNumber(v), reset: (v) => decommaizeNumberToString(v) }}
-            />
-          ) : (
-            <TextField
-              variant="box"
-              label="환전 달러"
-              labelOption="sustain"
-              value={dollarInput}
-              onChange={(e) => setDollarInput(e.target.value)}
-              prefix="$"
-              placeholder="0.00"
-              inputMode="text"
-              format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
-            />
-          )}
-        </div>
-
-        {/* 적용 환율 입력 */}
-        <div style={colFull}>
-          <TextField
-            variant="box"
-            label="적용 환율"
-            labelOption="sustain"
-            value={rateInput}
-            onChange={(e) => setRateInput(e.target.value)}
-            prefix="₩"
-            placeholder="0.00"
-            inputMode="text"
-            format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
-            description={noAverageRate ? "환전 기록이 없어 평균단가를 계산할 수 없어요. 손익은 0으로 저장돼요." : undefined}
-          />
-        </div>
+        {/* 원화·달러 두 금액 입력 → 적용 환율 자동 계산 */}
+        {type === "buy" ? (
+          <>
+            <div style={colFull}>
+              <TextField
+                variant="box"
+                label="낸 원화"
+                labelOption="sustain"
+                value={krwInput}
+                onChange={(e) => setKrwInput(e.target.value)}
+                prefix="₩"
+                placeholder="0"
+                inputMode="numeric"
+                format={{ transform: (v) => commaizeNumber(v), reset: (v) => decommaizeNumberToString(v) }}
+              />
+            </div>
+            <div style={colFull}>
+              <TextField
+                variant="box"
+                label="받은 달러"
+                labelOption="sustain"
+                value={dollarInput}
+                onChange={(e) => setDollarInput(e.target.value)}
+                prefix="$"
+                placeholder="0.00"
+                inputMode="decimal"
+                format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
+                help="토스증권 거래내역 > 환전에서 거래를 누르면 낸 원화와 받은 달러를 볼 수 있어요"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={colFull}>
+              <TextField
+                variant="box"
+                label="판 달러"
+                labelOption="sustain"
+                value={dollarInput}
+                onChange={(e) => setDollarInput(e.target.value)}
+                prefix="$"
+                placeholder="0.00"
+                inputMode="decimal"
+                format={{ transform: (v) => commaizeDecimal(v), reset: (v) => decommaizeDecimal(v) }}
+              />
+            </div>
+            <div style={colFull}>
+              <TextField
+                variant="box"
+                label="받은 원화"
+                labelOption="sustain"
+                value={krwInput}
+                onChange={(e) => setKrwInput(e.target.value)}
+                prefix="₩"
+                placeholder="0"
+                inputMode="numeric"
+                format={{ transform: (v) => commaizeNumber(v), reset: (v) => decommaizeNumberToString(v) }}
+                help={
+                  noAverageRate
+                    ? "환전 기록이 없어 평균단가를 계산할 수 없어요. 손익은 0으로 저장돼요."
+                    : "토스증권 거래내역 > 환전에서 거래를 누르면 판 달러와 받은 원화를 볼 수 있어요"
+                }
+              />
+            </div>
+          </>
+        )}
 
         {/* 미리보기 — 패딩 안쪽에 회색 둥근 박스 */}
         <div style={{ padding: "16px 20px 0" }}>
           <div style={{ background: colors.grey50, borderRadius: "12px" }}>
             {type === "buy" && (
               <>
-                <PreviewRow label="원화 지출" value={formatKrw(appliedKrw)} />
+                <PreviewRow label="낸 원화" value={formatKrw(appliedKrw)} />
                 <PreviewRow label="적용 환율" value={formatRate(appliedRate)} />
                 <PreviewRow label="받은 달러" value={formatDollar(dollarAmount)} />
                 <PreviewRow label="입력 후 평균단가" value={formatRate(newAverageRateAfterBuy)} />
                 <div style={{ height: 1, background: colors.grey100, margin: "4px 12px" }} />
                 <PreviewRow
-                  label="거래 후 총 투입 원화"
+                  label="거래 후 원금"
                   value={formatKrw(summary.totalInvestedKrw + appliedKrw)}
                 />
                 <PreviewRow
-                  label="거래 후 현재 보유 달러"
+                  label="거래 후 달러"
                   value={formatDollar(summary.currentDollarAmount + dollarAmount)}
                 />
               </>
             )}
             {type === "sell" && (
               <>
-                <PreviewRow label="수령 원화" value={formatKrw(appliedKrw)} />
+                <PreviewRow label="받은 원화" value={formatKrw(appliedKrw)} />
                 <PreviewRow label="적용 환율" value={formatRate(appliedRate)} />
-                <PreviewRow label="판매 달러" value={formatDollar(dollarAmount)} />
+                <PreviewRow label="판 달러" value={formatDollar(dollarAmount)} />
                 <PreviewRow
                   label="환전 손익"
                   value={formatProfitKrw(sellProfitThisTime)}
@@ -361,18 +457,46 @@ export function AddRecordPage() {
                 />
                 <div style={{ height: 1, background: colors.grey100, margin: "4px 12px" }} />
                 <PreviewRow
-                  label="거래 후 총 투입 원화"
+                  label="거래 후 원금"
                   value={formatKrw(Math.max(0, summary.totalInvestedKrw - summary.averageExchangeRate * dollarAmount))}
                 />
               </>
             )}
           </div>
+          {isOverBalanceSell && (
+            <Text
+              typography="t7"
+              color={colors.grey600}
+              style={{ display: "block", padding: "8px 4px 0", textAlign: "center" }}
+            >
+              기록된 달러({formatDollar(balanceBeforeThis)})보다 많이 팔았어요.
+              <br />
+              초과분은 원가를 알 수 없어 손익 없이 계산돼요
+            </Text>
+          )}
+          {appliedRate > 0 && (
+            <Text
+              typography="t7"
+              color={colors.grey500}
+              style={{ display: "block", padding: "8px 4px 0", textAlign: "center" }}
+            >
+              두 금액으로 계산한 실효 환율이라 증권사 표시 환율과
+              <br />
+              소수점 끝자리가 다를 수 있어요
+            </Text>
+          )}
         </div>
       </div>
 
       {saveError && (
         <Text typography="t7" color={colors.red500} style={{ textAlign: "center" }}>
           {saveError}
+        </Text>
+      )}
+
+      {!saveError && submitHint && (
+        <Text typography="t7" color={colors.grey600} style={{ textAlign: "center" }}>
+          {submitHint}
         </Text>
       )}
 
