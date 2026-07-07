@@ -1,3 +1,4 @@
+import { Analytics } from "@apps-in-toss/web-framework";
 import { FixedBottomCTA, Text } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 
@@ -5,7 +6,10 @@ export function RecordCTA({ onClick, label }: { onClick: () => void; label: stri
   return (
     <FixedBottomCTA
       size="large"
-      onClick={onClick}
+      onClick={() => {
+        Analytics.click({ log_name: "record_cta_click", label });
+        onClick();
+      }}
       bottomAccessory={
         <Text
           typography="t7"
