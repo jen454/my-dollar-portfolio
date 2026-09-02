@@ -9,6 +9,7 @@ import { buildTransactionBalanceMap } from "../utils/calculator";
 import { formatRate } from "../utils/formatter";
 import { TransactionRow } from "../components/TransactionRow";
 import { RecordCTA } from "../components/RecordCTA";
+import { HistoricalRateBar } from "../components/HistoricalRateBar";
 
 const colFull = {
   display: "flex",
@@ -106,6 +107,10 @@ export function HomeDashboardPage() {
                   }
                 />
             </div>
+
+            {/* 52주 환율 위치 (참고 지표) */}
+            <div style={{ height: 1, background: colors.grey100, margin: "0 4px" }} />
+            <HistoricalRateBar currentRate={summary.currentExchangeRate} />
           </div>
         </div>
 
