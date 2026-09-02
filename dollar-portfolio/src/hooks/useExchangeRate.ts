@@ -92,25 +92,28 @@ function resolveResultError(resultCode: number): string {
 /**
  * searchdate 기준으로 환율을 조회한다. 비영업일/응답 없음이면 null을 반환한다.
  */
-async function fetchExchangeRateByDate(
-  searchDate: string,
-  apiKey?: string,
-): Promise<number | null> {
+async function fetchExchangeRateByDate(searchDate: string): Promise<number | null> {
+  // 인증키는 서버(개발: vite 미들웨어 / 운영: 서버리스 함수)에서만 사용한다.
   const url = new URL(EXCHANGE_RATE_API_URL, window.location.origin);
-  if (apiKey) url.searchParams.set("authkey", apiKey);
   url.searchParams.set("data", "AP01");
   url.searchParams.set("searchdate", searchDate);
 
   const response = await fetch(url.toString());
+  const payload = (await response.json().catch(() => null)) as
+    | ExchangeRateApiItem[]
+    | { error?: string }
+    | null;
+
   if (!response.ok) {
-    throw new Error(`환율 API 응답 오류 (${response.status})`);
+    const message = !Array.isArray(payload) ? payload?.error : undefined;
+    throw new Error(message ?? `환율 API 응답 오류 (${response.status})`);
   }
 
-  const data = (await response.json()) as ExchangeRateApiItem[] | null;
   // 비영업일/오전 11시 이전 조회 시 null 또는 빈 배열이 내려온다.
-  if (!data || data.length === 0) {
+  if (!Array.isArray(payload) || payload.length === 0) {
     return null;
   }
+  const data = payload;
 
   const usd = data.find((item) => item.cur_unit === "USD");
   if (!usd) {
@@ -133,10 +136,10 @@ function formatRateBaseDate(yyyymmdd: string): string {
  * 오늘 날짜부터 최대 MAX_BUSINESS_DAY_LOOKBACK일 전까지 하루씩 앞당겨가며
  * 가장 최근 영업일의 환율을 조회한다.
  */
-async function fetchLatestExchangeRate(apiKey?: string): Promise<{ rate: number; rateBaseDate: string }> {
+async function fetchLatestExchangeRate(): Promise<{ rate: number; rateBaseDate: string }> {
   for (let daysAgo = 0; daysAgo < MAX_BUSINESS_DAY_LOOKBACK; daysAgo += 1) {
     const searchDate = formatSearchDate(daysAgo);
-    const rate = await fetchExchangeRateByDate(searchDate, apiKey);
+    const rate = await fetchExchangeRateByDate(searchDate);
     if (rate !== null) {
       return { rate, rateBaseDate: formatRateBaseDate(searchDate) };
     }
@@ -180,8 +183,7 @@ export function useExchangeRate(): UseExchangeRateResult {
     setError(null);
 
     try {
-      const apiKey = import.meta.env.DEV ? (import.meta.env.VITE_EXCHANGE_RATE_API_KEY ?? "") : undefined;
-      const { rate: parsedRate, rateBaseDate: baseDate } = await fetchLatestExchangeRate(apiKey);
+      const { rate: parsedRate, rateBaseDate: baseDate } = await fetchLatestExchangeRate();
 
       const fetchedAt = Date.now();
       writeCache({ rate: parsedRate, fetchedAt, rateBaseDate: baseDate });
