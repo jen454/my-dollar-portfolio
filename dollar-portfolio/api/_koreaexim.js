@@ -4,6 +4,7 @@ import tls from "node:tls";
 const API_HOST = "https://oapi.koreaexim.go.kr";
 const API_PATH = "/site/program/financial/exchangeJSON";
 const REQUEST_TIMEOUT_MS = 8000;
+const MAX_ATTEMPTS = 3; // WAF의 302/연결 끊김이 간헐적이라 쿠키를 새로 받아 재시도
 
 /**
  * oapi.koreaexim.go.kr는 리프 인증서만 내려주고 중간 CA를 체인에 포함하지 않는다.
@@ -65,14 +66,26 @@ export async function fetchExchangeRates({ authkey, data = "AP01", searchdate })
   url.searchParams.set("data", data);
   if (searchdate) url.searchParams.set("searchdate", searchdate);
 
-  let res = await get(url.toString());
-  if (res.status >= 300 && res.status < 400 && res.headers["set-cookie"]) {
-    const cookie = res.headers["set-cookie"].map((c) => c.split(";")[0]).join("; ");
-    res = await get(url.toString(), cookie);
+  let res = null;
+  let lastError = null;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    try {
+      res = await get(url.toString());
+      if (res.status >= 300 && res.status < 400 && res.headers["set-cookie"]) {
+        const cookie = res.headers["set-cookie"].map((c) => c.split(";")[0]).join("; ");
+        res = await get(url.toString(), cookie);
+      }
+      if (res.status === 200) break;
+      lastError = new Error(`환율 API 응답 오류 (${res.status})`);
+    } catch (error) {
+      lastError = error;
+    }
+    res = null;
   }
 
-  if (res.status !== 200) {
-    throw new Error(`환율 API 응답 오류 (${res.status})`);
+  if (!res) {
+    throw lastError ?? new Error("환율 API 요청에 실패했습니다.");
   }
 
   const trimmed = res.body.trim();
