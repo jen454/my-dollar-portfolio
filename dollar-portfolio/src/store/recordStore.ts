@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { portfolioStorage } from "../utils/storage";
+import { migrateOriginStorage } from "../utils/originMigration";
 import { mockCurrentExchangeRate, mockStorage } from "../mocks/transactions";
 import type { DollarTransaction, DollarPortfolioStorageV1 } from "../types";
 
@@ -51,6 +52,7 @@ export const useRecordStore = create<RecordStore>((set, get) => ({
   saveError: null,
 
   loadFromStorage: async () => {
+    await migrateOriginStorage();
     const saved = await portfolioStorage.get();
     if (saved) {
       // 과거 change 유형으로 저장된 기록은 더 이상 지원하지 않으므로 제거한다.
