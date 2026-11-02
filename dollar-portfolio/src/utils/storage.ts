@@ -1,7 +1,7 @@
 import { Storage as SDKStorage } from "@apps-in-toss/web-framework";
 import type { DollarPortfolioStorageV1 } from "../types";
 
-const STORAGE_KEY = "dollar_portfolio_v1";
+export const STORAGE_KEY = "dollar_portfolio_v1";
 
 export const portfolioStorage = {
   async get(): Promise<DollarPortfolioStorageV1 | null> {

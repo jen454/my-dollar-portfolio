@@ -165,6 +165,7 @@ CARD 2 (환전 내역)
 - 실패 시 localStorage 폴백
 - 앱 시작 시 한 번만 로드 → Zustand에서 관리
 - 변경 시에만 Storage에 저장
+- SDK 3.x 전환(2026.09): 앱 시작 시 `Migration.getOriginStorage()`로 이전 origin의 localStorage 기록을 한 번 옮겨옴 (updatedAt 최신본 유지, `src/utils/originMigration.ts`)
 
 ## 환율 API
 
