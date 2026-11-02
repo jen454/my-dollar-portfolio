@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { BottomSheet, Text } from "@toss/tds-mobile";
 import { PageSpinner } from "../components/PageSpinner";
+import { StorageLoadError } from "../components/StorageLoadError";
 import { colors } from "@toss/tds-colors";
 import type { DollarTransaction } from "../types";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
@@ -29,8 +30,15 @@ const FILTER_OPTIONS: Array<{ name: string; value: string }> = [
 export function TransactionListPage() {
   const navigate = useNavigate();
   const today = new Date();
-  const { storage, isLoaded } = useDollarPortfolio();
+  const { storage, isLoaded, loadError } = useDollarPortfolio();
   const deleteTransaction = useRecordStore((s) => s.deleteTransaction);
+  const saveError = useRecordStore((s) => s.saveError);
+  const clearSaveError = useRecordStore((s) => s.clearSaveError);
+
+  // 다른 화면에서 남은 저장 오류를 이 화면의 삭제 오류로 보여주지 않는다
+  useEffect(() => {
+    clearSaveError();
+  }, [clearSaveError]);
 
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
@@ -77,6 +85,7 @@ export function TransactionListPage() {
   const currentFilterLabel = FILTER_OPTIONS.find((o) => o.value === filter)?.name ?? "전체";
   const isEmpty = isLoaded && storage.transactions.length === 0;
 
+  if (loadError) return <StorageLoadError />;
   if (!isLoaded) return <PageSpinner />;
 
   return (
@@ -116,6 +125,16 @@ export function TransactionListPage() {
             </Text>
           </button>
         </div>
+
+        {saveError && (
+          <Text
+            typography="t7"
+            color={colors.red500}
+            style={{ display: "block", paddingBottom: 8, textAlign: "center" }}
+          >
+            {saveError}
+          </Text>
+        )}
 
         {/* Transaction groups */}
         {groupedTransactions.length === 0 ? (

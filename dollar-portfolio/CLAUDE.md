@@ -161,8 +161,9 @@ CARD 2 (환전 내역)
 
 ## Storage 전략
 
-- SDK Storage 우선 시도
-- 실패 시 localStorage 폴백
+- 저장: SDK Storage와 localStorage에 모두 기록 (한쪽만 성공해도 저장 성공)
+- 로드: 두 저장소 중 updatedAt이 최신인 쪽을 사용
+- 읽기 실패와 기록 없음을 구분: 읽지 못하면 StorageReadError → 오류 화면 (빈 상태로 저장해 기록을 덮어쓰는 것 방지)
 - 앱 시작 시 한 번만 로드 → Zustand에서 관리
 - 변경 시에만 Storage에 저장
 - SDK 3.x 전환(2026.09): 앱 시작 시 `Migration.getOriginStorage()`로 이전 origin의 localStorage 기록을 한 번 옮겨옴 (updatedAt 최신본 유지, `src/utils/originMigration.ts`)
@@ -172,7 +173,8 @@ CARD 2 (환전 내역)
 - 한국수출입은행 OpenAPI
 - URL: https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
 - 필드: deal_bas_r (매매기준율)
-- 환경변수: VITE_EXCHANGE_RATE_API_KEY
+- 환경변수: 프록시(운영) EXCHANGE_RATE_API_KEY / vite 개발 미들웨어 VITE_EXCHANGE_RATE_API_KEY / 앱 빌드 VITE_EXCHANGE_RATE_PROXY_URL
+- 조회 실패 시 캐시의 마지막 환율 유지, 캐시도 없으면 환율 "-" 표시 + 다시 시도 버튼 (mock 값 사용 금지)
 
 ## 디자인 원칙
 

@@ -1,5 +1,6 @@
 import { ListRow, TextButton, Text, BottomSheet } from "@toss/tds-mobile";
 import { PageSpinner } from "../components/PageSpinner";
+import { StorageLoadError } from "../components/StorageLoadError";
 import { colors } from "@toss/tds-colors";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
@@ -35,9 +36,15 @@ const gridItemStyle = {
 };
 
 
-export function HomeDashboardPage() {
+export function HomeDashboardPage({
+  isRateLoading,
+  onRetryRate,
+}: {
+  isRateLoading: boolean;
+  onRetryRate: () => void;
+}) {
   const navigate = useNavigate();
-  const { storage, summary, recentTransactions, isLoaded } = useDollarPortfolio();
+  const { storage, summary, recentTransactions, isLoaded, loadError } = useDollarPortfolio();
   const rateBaseDate = useRecordStore((s) => s.rateBaseDate);
   const rateError = useRecordStore((s) => s.rateError);
   const balanceMap = useMemo(
@@ -51,6 +58,10 @@ export function HomeDashboardPage() {
   const isEmpty = isLoaded && storage.transactions.length === 0;
   const [helpExchangeOpen, setHelpExchangeOpen] = useState(false);
 
+  // 실제 환율을 한 번도 받지 못했으면 숫자 대신 "-"를 보여준다
+  const hasRate = summary.currentExchangeRate > 0;
+
+  if (loadError) return <StorageLoadError />;
   if (!isLoaded) return <PageSpinner />;
 
   return (
@@ -89,19 +100,24 @@ export function HomeDashboardPage() {
                         <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
                           <ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>현재 환율</ListRow.Text>
                           {rateError ? (
-                            <ListRow.Text typography="t7" color={colors.yellow500}>· 조회 실패, 이전 환율</ListRow.Text>
+                            <>
+                              <ListRow.Text typography="t7" color={colors.yellow500}>· {hasRate ? "조회 실패, 이전 환율" : "조회 실패"}</ListRow.Text>
+                              <TextButton size="small" color={colors.blue600} onClick={onRetryRate}>다시 시도</TextButton>
+                            </>
+                          ) : isRateLoading && !hasRate ? (
+                            <ListRow.Text typography="t7" color={colors.grey400}>· 불러오는 중</ListRow.Text>
                           ) : rateBaseDate ? (
                             <ListRow.Text typography="t7" color={colors.grey400}>· {rateBaseDate.slice(5)} 기준</ListRow.Text>
                           ) : null}
                         </div>
                       }
-                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{formatRate(summary.currentExchangeRate)}</ListRow.Text>}
+                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={colors.grey900}>{hasRate ? formatRate(summary.currentExchangeRate) : "-"}</ListRow.Text>}
                     />
                   }
                   right={
                     <ListRow.Texts type="2RowTypeA"
                       top={<ListRow.Text typography="t7" fontWeight="medium" color={colors.grey500}>평균 대비</ListRow.Text>}
-                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={summary.rateDiffFromAverage >= 0 ? colors.red500 : colors.blue500}>{rateDiffText}</ListRow.Text>}
+                      bottom={<ListRow.Text typography="t6" fontWeight="semibold" color={!hasRate ? colors.grey900 : summary.rateDiffFromAverage >= 0 ? colors.red500 : colors.blue500}>{hasRate ? rateDiffText : "-"}</ListRow.Text>}
                     />
                   }
                 />

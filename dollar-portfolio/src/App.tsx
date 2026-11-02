@@ -8,7 +8,7 @@ import { useRecordStore } from "./store/recordStore";
 import "./App.css";
 
 function AppContent() {
-  const { rate, rateBaseDate, error } = useExchangeRate();
+  const { rate, rateBaseDate, error, isLoading, refetch } = useExchangeRate();
   const setExchangeRate = useRecordStore((s) => s.setExchangeRate);
   const setRateBaseDate = useRecordStore((s) => s.setRateBaseDate);
   const setRateError = useRecordStore((s) => s.setRateError);
@@ -27,7 +27,7 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/" element={<HomeDashboardPage />} />
+      <Route path="/" element={<HomeDashboardPage isRateLoading={isLoading} onRetryRate={refetch} />} />
       <Route path="/transactions" element={<TransactionListPage />} />
       <Route path="/add-record" element={<AddRecordPage />} />
     </Routes>

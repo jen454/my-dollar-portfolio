@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useRecordStore } from "../store/recordStore";
 
 const EXCHANGE_RATE_API_URL = import.meta.env.DEV
   ? "/api/exchange-rate"
@@ -7,6 +6,7 @@ const EXCHANGE_RATE_API_URL = import.meta.env.DEV
 const CACHE_KEY = "dollar_portfolio_exchange_rate_cache";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const MAX_BUSINESS_DAY_LOOKBACK = 5; // 비영업일 대비 최대 5일 전까지 재조회
+const FETCH_TIMEOUT_MS = 12000; // 프록시 제한 시간(10초)에 네트워크 지연 여유를 더한 값
 
 type ExchangeRateCache = {
   rate: number;
@@ -21,7 +21,7 @@ type ExchangeRateApiItem = {
 };
 
 type UseExchangeRateResult = {
-  rate: number;
+  rate: number; // 0이면 아직 실제 환율을 받은 적이 없음
   isLoading: boolean;
   error: string | null;
   lastFetched: Date | null;
@@ -34,7 +34,7 @@ function readCache(): ExchangeRateCache | null {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ExchangeRateCache;
-    if (typeof parsed.rate !== "number" || typeof parsed.fetchedAt !== "number") {
+    if (typeof parsed.rate !== "number" || parsed.rate <= 0 || typeof parsed.fetchedAt !== "number") {
       return null;
     }
     return parsed;
@@ -98,11 +98,16 @@ async function fetchExchangeRateByDate(searchDate: string): Promise<number | nul
   url.searchParams.set("data", "AP01");
   url.searchParams.set("searchdate", searchDate);
 
-  const response = await fetch(url.toString());
-  const payload = (await response.json().catch(() => null)) as
-    | ExchangeRateApiItem[]
-    | { error?: string }
-    | null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let response: Response;
+  let payload: ExchangeRateApiItem[] | { error?: string } | null;
+  try {
+    response = await fetch(url.toString(), { signal: controller.signal });
+    payload = await response.json().catch(() => null);
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const message = !Array.isArray(payload) ? payload?.error : undefined;
@@ -115,13 +120,15 @@ async function fetchExchangeRateByDate(searchDate: string): Promise<number | nul
   }
   const data = payload;
 
+  // 인증 오류·한도 초과 응답에는 USD 항목이 없을 수 있어 비영업일로 오인하지 않도록 먼저 확인한다.
+  const failed = data.find((item) => item.result !== 1);
+  if (failed) {
+    throw new Error(resolveResultError(failed.result));
+  }
+
   const usd = data.find((item) => item.cur_unit === "USD");
   if (!usd) {
     return null;
-  }
-
-  if (usd.result !== 1) {
-    throw new Error(resolveResultError(usd.result));
   }
 
   const parsedRate = parseDealBasR(usd.deal_bas_r);
@@ -136,7 +143,7 @@ function formatRateBaseDate(yyyymmdd: string): string {
  * 오늘 날짜부터 최대 MAX_BUSINESS_DAY_LOOKBACK일 전까지 하루씩 앞당겨가며
  * 가장 최근 영업일의 환율을 조회한다.
  */
-async function fetchLatestExchangeRate(): Promise<{ rate: number; rateBaseDate: string }> {
+export async function fetchLatestExchangeRate(): Promise<{ rate: number; rateBaseDate: string }> {
   for (let daysAgo = 0; daysAgo < MAX_BUSINESS_DAY_LOOKBACK; daysAgo += 1) {
     const searchDate = formatSearchDate(daysAgo);
     const rate = await fetchExchangeRateByDate(searchDate);
@@ -151,13 +158,12 @@ async function fetchLatestExchangeRate(): Promise<{ rate: number; rateBaseDate: 
  * 한국수출입은행 OpenAPI로 실시간 USD 기준환율을 조회한다.
  * - 마지막 조회 후 1시간 이내면 캐시된 값을 사용한다.
  * - 비영업일/조회 시간 이전이면 최근 영업일까지 하루씩 앞당겨 재조회한다.
- * - 조회 실패 시 recordStore에 저장된 마지막 환율을 그대로 사용한다.
+ * - 조회 실패 시 캐시에 남은 마지막 환율을 유지하고, 캐시도 없으면 0(환율 없음)으로 둔다.
  */
 export function useExchangeRate(): UseExchangeRateResult {
-  const storeRate = useRecordStore((state) => state.currentExchangeRate);
   const cached = readCache();
 
-  const [rate, setRate] = useState(cached?.rate ?? storeRate);
+  const [rate, setRate] = useState(cached?.rate ?? 0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<Date | null>(
@@ -192,12 +198,11 @@ export function useExchangeRate(): UseExchangeRateResult {
       setLastFetched(new Date(fetchedAt));
     } catch (err) {
       setError(err instanceof Error ? err.message : "환율 조회에 실패했습니다.");
-      setRate(storeRate);
     } finally {
       setIsLoading(false);
     }
   },
-  [storeRate],
+  [],
 );
 
   useEffect(() => {

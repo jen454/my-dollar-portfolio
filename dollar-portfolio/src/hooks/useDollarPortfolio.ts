@@ -9,9 +9,13 @@ const emptyStorage: DollarPortfolioStorageV1 = {
   updatedAt: new Date(0).toISOString(),
 };
 
-export function useDollarPortfolio(): DollarPortfolioState & { isLoaded: boolean } {
+export function useDollarPortfolio(): DollarPortfolioState & {
+  isLoaded: boolean;
+  loadError: string | null;
+} {
   const storage = useRecordStore((state) => state.storage);
   const isLoaded = useRecordStore((state) => state.isLoaded);
+  const loadError = useRecordStore((state) => state.loadError);
   const currentExchangeRate = useRecordStore((state) => state.currentExchangeRate);
   const loadFromStorage = useRecordStore((state) => state.loadFromStorage);
 
@@ -38,5 +42,6 @@ export function useDollarPortfolio(): DollarPortfolioState & { isLoaded: boolean
     summary,
     recentTransactions,
     isLoaded,
+    loadError,
   };
 }

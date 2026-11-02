@@ -4,12 +4,15 @@ import { createRoot } from "react-dom/client";
 
 import config from "../apps-in-toss.config.ts";
 import App from "./App.tsx";
+import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <TDSMobileAITProvider brandPrimaryColor={config.brand.primaryColor}>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </TDSMobileAITProvider>
   </StrictMode>,
 );

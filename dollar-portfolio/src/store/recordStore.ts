@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { portfolioStorage } from "../utils/storage";
 import { migrateOriginStorage } from "../utils/originMigration";
-import { mockCurrentExchangeRate, mockStorage } from "../mocks/transactions";
+import { mockStorage } from "../mocks/transactions";
 import type { DollarTransaction, DollarPortfolioStorageV1 } from "../types";
 
 function createId() {
@@ -19,7 +19,8 @@ function createEmptyStorage(): DollarPortfolioStorageV1 {
 interface RecordStore {
   storage: DollarPortfolioStorageV1 | null;
   isLoaded: boolean;
-  currentExchangeRate: number;
+  loadError: string | null;
+  currentExchangeRate: number; // 0이면 아직 실제 환율을 받은 적이 없음
   rateBaseDate: string | null;
   rateError: string | null;
   saveError: string | null;
@@ -46,26 +47,33 @@ async function persist(storage: DollarPortfolioStorageV1) {
 export const useRecordStore = create<RecordStore>((set, get) => ({
   storage: null,
   isLoaded: false,
-  currentExchangeRate: mockCurrentExchangeRate,
+  loadError: null,
+  currentExchangeRate: 0,
   rateBaseDate: null,
   rateError: null,
   saveError: null,
 
   loadFromStorage: async () => {
-    await migrateOriginStorage();
-    const saved = await portfolioStorage.get();
-    if (saved) {
-      // 과거 change 유형으로 저장된 기록은 더 이상 지원하지 않으므로 제거한다.
-      const transactions = saved.transactions.filter(
-        (tx): tx is DollarTransaction => tx.type === "buy" || tx.type === "sell",
-      );
-      set({ storage: { ...saved, transactions }, isLoaded: true });
-      return;
-    }
+    set({ loadError: null });
+    try {
+      await migrateOriginStorage();
+      const saved = await portfolioStorage.get();
+      if (saved) {
+        // 과거 change 유형으로 저장된 기록은 더 이상 지원하지 않으므로 제거한다.
+        const transactions = saved.transactions.filter(
+          (tx): tx is DollarTransaction => tx.type === "buy" || tx.type === "sell",
+        );
+        set({ storage: { ...saved, transactions }, isLoaded: true });
+        return;
+      }
 
-    // Storage에 데이터가 없으면 개발 환경에서만 mock 데이터를 사용한다.
-    const initial = import.meta.env.DEV ? mockStorage : createEmptyStorage();
-    set({ storage: initial, isLoaded: true });
+      // Storage에 데이터가 없으면 개발 환경에서만 mock 데이터를 사용한다.
+      const initial = import.meta.env.DEV ? mockStorage : createEmptyStorage();
+      set({ storage: initial, isLoaded: true });
+    } catch (err) {
+      // storage를 비워 둔 채 두어야 저장이 막혀 기존 기록을 덮어쓰지 않는다.
+      set({ loadError: err instanceof Error ? err.message : "기록을 불러오지 못했어요." });
+    }
   },
 
   setExchangeRate: (rate) => {
@@ -85,7 +93,12 @@ export const useRecordStore = create<RecordStore>((set, get) => ({
   },
 
   addTransaction: async (tx) => {
-    const current = get().storage ?? createEmptyStorage();
+    const current = get().storage;
+    if (!current) {
+      // 로드 전에 저장하면 기존 기록을 덮어쓰게 되므로 막는다.
+      set({ saveError: "기록을 아직 불러오지 못했어요. 잠시 후 다시 시도해주세요." });
+      return;
+    }
     const newTransaction: DollarTransaction = {
       ...tx,
       id: createId(),

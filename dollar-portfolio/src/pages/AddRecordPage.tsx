@@ -12,6 +12,8 @@ import {
   TextField,
 } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
+import { PageSpinner } from "../components/PageSpinner";
+import { StorageLoadError } from "../components/StorageLoadError";
 import { useRecordStore } from "../store/recordStore";
 import { useDollarPortfolio } from "../hooks/useDollarPortfolio";
 import type { DollarTransaction, TransactionType } from "../types";
@@ -171,7 +173,12 @@ export function AddRecordPage() {
   const updateTransaction = useRecordStore((state) => state.updateTransaction);
   const saveError = useRecordStore((state) => state.saveError);
   const clearSaveError = useRecordStore((state) => state.clearSaveError);
-  const { summary } = useDollarPortfolio();
+  const { summary, isLoaded, loadError } = useDollarPortfolio();
+
+  // 내역 화면에서 남은 삭제 오류를 폼의 저장 오류로 보여주지 않는다
+  useEffect(() => {
+    clearSaveError();
+  }, [clearSaveError]);
 
   const [draft] = useState(() => (editingTransaction ? null : loadDraft()));
 
@@ -300,6 +307,9 @@ export function AddRecordPage() {
       navigate("/");
     }
   }
+
+  if (loadError) return <StorageLoadError />;
+  if (!isLoaded) return <PageSpinner />;
 
   return (
     <main
