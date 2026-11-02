@@ -5,6 +5,8 @@ const API_HOST = "https://oapi.koreaexim.go.kr";
 const API_PATH = "/site/program/financial/exchangeJSON";
 const REQUEST_TIMEOUT_MS = 8000;
 const MAX_ATTEMPTS = 3; // WAF의 302/연결 끊김이 간헐적이라 쿠키를 새로 받아 재시도
+const TOTAL_BUDGET_MS = 9000; // vercel.json의 maxDuration(10초)보다 짧아야 502로 정상 응답할 수 있다
+const MIN_ATTEMPT_MS = 500; // 남은 시간이 이보다 적으면 재시도해도 성공할 가능성이 없다
 
 /**
  * oapi.koreaexim.go.kr는 리프 인증서만 내려주고 중간 CA를 체인에 포함하지 않는다.
@@ -42,22 +44,48 @@ TYNYQI+BXG1R1cABlold
 
 const ca = [...tls.rootCertificates, THAWTE_TLS_RSA_CA_G1];
 
-function get(url, cookie) {
+function get(url, cookie, timeoutMs) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { ca, headers: cookie ? { Cookie: cookie } : {} }, (res) => {
       let body = "";
       res.setEncoding("utf8");
       res.on("data", (chunk) => (body += chunk));
-      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
+      res.on("end", () => {
+        clearTimeout(timer);
+        resolve({ status: res.statusCode ?? 0, headers: res.headers, body });
+      });
+      // 본문을 받는 중에 끊기면 req가 아니라 res에서 에러가 난다.
+      res.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
     });
-    req.on("error", reject);
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => req.destroy(new Error("환율 API 응답 시간 초과")));
+    // req.setTimeout은 유휴 시간만 재므로 응답이 조금씩 오면 멈추지 않는다. 전체 시간을 직접 잰다.
+    const timer = setTimeout(
+      () => req.destroy(new Error("환율 API 응답 시간 초과")),
+      timeoutMs,
+    );
+    req.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
   });
+}
+
+function parseBody(body) {
+  const trimmed = body.trim();
+  if (!trimmed) return [];
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error("환율 API 응답을 해석할 수 없습니다.");
+  }
 }
 
 /**
  * 수출입은행 환율 API를 조회해 파싱된 JSON 배열을 반환한다.
  * WAF가 첫 요청에 302 + Set-Cookie로 응답하는 경우가 있어 쿠키를 붙여 한 번 재시도한다.
+ * 재시도를 포함한 전체 시간은 TOTAL_BUDGET_MS 안에서 끝내 함수가 강제 종료되지 않게 한다.
  * 비영업일이면 빈 배열이 내려온다.
  */
 export async function fetchExchangeRates({ authkey, data = "AP01", searchdate }) {
@@ -66,34 +94,24 @@ export async function fetchExchangeRates({ authkey, data = "AP01", searchdate })
   url.searchParams.set("data", data);
   if (searchdate) url.searchParams.set("searchdate", searchdate);
 
-  let res = null;
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const nextTimeout = () => Math.min(REQUEST_TIMEOUT_MS, deadline - Date.now());
   let lastError = null;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    if (nextTimeout() < MIN_ATTEMPT_MS) break;
     try {
-      res = await get(url.toString());
+      let res = await get(url.toString(), undefined, nextTimeout());
       if (res.status >= 300 && res.status < 400 && res.headers["set-cookie"]) {
         const cookie = res.headers["set-cookie"].map((c) => c.split(";")[0]).join("; ");
-        res = await get(url.toString(), cookie);
+        res = await get(url.toString(), cookie, nextTimeout());
       }
-      if (res.status === 200) break;
+      if (res.status === 200) return parseBody(res.body);
       lastError = new Error(`환율 API 응답 오류 (${res.status})`);
     } catch (error) {
       lastError = error;
     }
-    res = null;
   }
 
-  if (!res) {
-    throw lastError ?? new Error("환율 API 요청에 실패했습니다.");
-  }
-
-  const trimmed = res.body.trim();
-  if (!trimmed) return [];
-
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    throw new Error("환율 API 응답을 해석할 수 없습니다.");
-  }
+  throw lastError ?? new Error("환율 API 요청에 실패했습니다.");
 }
