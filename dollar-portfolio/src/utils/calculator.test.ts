@@ -34,6 +34,29 @@ describe("sortTransactionsByDateDesc", () => {
     const sorted = sortTransactionsByDateDesc(txs);
     expect(sorted[0].id).toBe("b");
   });
+  it("같은 날짜의 같은 유형은 나중에 입력한 것이 앞", () => {
+    const sorted = sortTransactionsByDateDesc([
+      { ...buy("z", "2026.01.01", 100, 140000, 1400), createdAt: 1 },
+      { ...buy("a", "2026.01.01", 100, 140000, 1400), createdAt: 2 },
+    ]);
+    expect(sorted.map((t) => t.id)).toEqual(["a", "z"]);
+  });
+  it("같은 날짜의 buy와 sell은 id와 입력 순서에 상관없이 buy부터 계산한다", () => {
+    const cases: DollarTransaction[][] = [
+      [buy("a", "2026.01.01", 100, 140000, 1400), sell("b", "2026.01.01", 50, 75000, 1500)],
+      [buy("b", "2026.01.01", 100, 140000, 1400), sell("a", "2026.01.01", 50, 75000, 1500)],
+      [
+        { ...buy("a", "2026.01.01", 100, 140000, 1400), createdAt: 2 },
+        { ...sell("b", "2026.01.01", 50, 75000, 1500), createdAt: 1 },
+      ],
+    ];
+    for (const txs of cases) {
+      const summary = calculatePortfolioSummary(txs, 1400);
+      expect(summary.currentDollarAmount).toBe(50);
+      expect(summary.totalInvestedKrw).toBe(70000);
+      expect([...buildTransactionBalanceMap(txs).values()]).toEqual([100, 50]);
+    }
+  });
 });
 
 // ─── calculatePortfolioSummary ───────────────────────────────────────

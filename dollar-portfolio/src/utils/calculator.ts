@@ -13,6 +13,17 @@ export function sortTransactionsByDateDesc(transactions: DollarTransaction[]) {
       return delta;
     }
 
+    // 같은 날이면 입력 순서와 상관없이 buy → sell 순으로 계산되도록 최신순에서 sell을 앞에 둔다.
+    // 랜덤 id로 순서가 정해지면 같은 기록에서 잔액과 평균단가가 달라질 수 있다.
+    if (left.type !== right.type) {
+      return left.type === "sell" ? -1 : 1;
+    }
+
+    const createdDelta = (right.createdAt ?? 0) - (left.createdAt ?? 0);
+    if (createdDelta !== 0) {
+      return createdDelta;
+    }
+
     return right.id.localeCompare(left.id);
   });
 }
